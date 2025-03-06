@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 17.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-09-16 12:43+0000\n"
+"POT-Creation-Date: 2025-02-28 19:14+0000\n"
 "PO-Revision-Date: 2023-12-28 20:16+0000\n"
 "Last-Translator: Camila Vives, 2024\n"
 "Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
@@ -20,11 +20,6 @@ msgstr ""
 "Content-Transfer-Encoding: \n"
 "Language: es\n"
 "Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
-
-#. module: account_cashbox
-#: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_kanban
-msgid "<i class=\"fa fa-ellipsis-v\" role=\"img\" aria-label=\"Manage\" title=\"Manage\"/>"
-msgstr "<i class=\"fa fa-ellipsis-v\" role=\"img\" aria-label=\"Manage\" title=\"Manage\"/>"
 
 #. module: account_cashbox
 #: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_session_form
