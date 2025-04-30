@@ -23,6 +23,7 @@ class AccountMove(models.Model):
             rec.payment_state = 'electronic_pending'
 
     def action_post(self):
+        # TODO vk: lock only for arg
         res = super().action_post()
         to_pay_moves = self.filtered(
                 lambda x: x.payment_token_id and x.state == 'posted' and

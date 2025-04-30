@@ -51,6 +51,7 @@ class AccountPayment(models.Model):
         super(AccountPayment, self.with_context(paired_transfer=True))._create_paired_internal_transfer_payment()
 
     def action_post(self):
+        # TODO vk: lock for arg
         for rec in self:
             if rec.cashbox_session_id and rec.cashbox_session_id.state != 'opened':
                 raise UserError(_(

@@ -78,11 +78,13 @@ class AccountMove(models.Model):
         return super().button_draft()
 
     def _post(self, soft=False):
+        # TODO vk: lock only for arg
         res = super()._post(soft=soft)
         self.pay_now()
         return res
 
     def _search_default_journal(self):
+        # TODO vk: lock only for arg
         if self.env.context.get('default_company_id'):
             self.env.company =  self.env['res.company'].browse(self.env.context.get('default_company_id'))
         return super()._search_default_journal()

@@ -6,6 +6,7 @@
         <field name="inherit_id" ref="base.view_users_form"/>
         <field name="arch" type="xml">
             <group name="preferences" position="after">
+<!--                # TODO vk: lock for arg-->
                 <group name="pop_users_conf" string="Cajas">
                     <field name="allowed_cashbox_ids" widget="many2many_tags"/>
                     <field name="requiere_account_cashbox_session"/>

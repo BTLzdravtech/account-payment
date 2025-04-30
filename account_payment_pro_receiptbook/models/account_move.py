@@ -10,6 +10,7 @@ class AccountMove(models.Model):
     )
 
     def _get_last_sequence_domain(self, relaxed=False):
+        # TODO vk: lock only for arg
         """ para transferencias no queremos que se enumere con el ultimo numero de asiento porque podria ser un
         pago generado por un grupo de pagos y en ese caso el numero viene dado por el talonario de recibo/pago.
         Para esto creamos campo related stored a receiptbook_id de manera de que un asiento sepa si fue creado

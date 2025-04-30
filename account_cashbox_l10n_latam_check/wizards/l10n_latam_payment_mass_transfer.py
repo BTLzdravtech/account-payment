@@ -41,6 +41,7 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
                 rec.cashbox_session_id = False
 
     def _create_payments(self):
+        # TODO vk: lock only for arg
         self.ensure_one()
         if self.env.user.requiere_account_cashbox_session and not self.cashbox_session_id:
             raise UserError(_('Your user requires to use payment session on each tranfer'))

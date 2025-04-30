@@ -5,6 +5,7 @@ class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
 
     def _reconcile_after_done(self):
+        # TODO vk: lock only for arg
         super()._reconcile_after_done()
 
         # Si el pago relacionado a la trasaccion esta en draft y coinciden los datos
@@ -23,6 +24,7 @@ class PaymentTransaction(models.Model):
                 ).reconcile()
 
     def write(self, vals):
+        # TODO vk: lock for arg
         # Este hack es para evitar que las transacciones se marquen como post processed = True
         # Cuando las genero pendientes desde el back end
         # 1) Llama a _finalize_post_processing

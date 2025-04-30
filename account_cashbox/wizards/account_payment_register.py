@@ -43,6 +43,7 @@ class AccountPaymentRegister(models.TransientModel):
 
     @api.depends('payment_type', 'cashbox_session_id')
     def _compute_available_journal_ids(self):
+        # TODO vk: lock for arg
         super()._compute_available_journal_ids()
         for pay in self.filtered('cashbox_session_id'):
             # hacemos dominio sobre los line_ids y no los diarios del pop config porque
