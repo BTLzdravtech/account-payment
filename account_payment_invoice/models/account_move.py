@@ -23,13 +23,16 @@ class AccountMove(models.Model):
             rec.payment_state = 'electronic_pending'
 
     def action_post(self):
-        # TODO vk: lock only for arg
-        res = super().action_post()
-        to_pay_moves = self.filtered(
-                lambda x: x.payment_token_id and x.state == 'posted' and
-                x.payment_state in ['not_paid', 'electronic_pending'] and x.move_type == 'out_invoice')
-        to_pay_moves.sudo().create_electronic_payment()
-        return res
+        # DONETODO vk: lock only for arg
+        if self.company_id.country_id == self.env.ref('base.ar'):
+            res = super().action_post()
+            to_pay_moves = self.filtered(
+                    lambda x: x.payment_token_id and x.state == 'posted' and
+                    x.payment_state in ['not_paid', 'electronic_pending'] and x.move_type == 'out_invoice')
+            to_pay_moves.sudo().create_electronic_payment()
+            return res
+        else:
+            return super().action_post()
 
     def create_electronic_payment(self):
         tx_obj = self.env['payment.transaction']

@@ -119,82 +119,85 @@ class AccountPayment(models.Model):
         return res + ('counterpart_currency_id', 'counterpart_exchange_rate')
 
     def _synchronize_from_moves(self, changed_fields):
-        # TODO vk: moneky patch, lock only for arg
-        # Pisamos este método para eliminar la validación de la moneda (FW de 16, en 18 no existe más la restricción)
+        # DONETODO vk: moneky patch, lock only for arg
+        if self.company_id.country_id == self.env.ref('base.ar'):
+            # Pisamos este método para eliminar la validación de la moneda (FW de 16, en 18 no existe más la restricción)
 
-        if self._context.get('skip_account_move_synchronization'):
-            return
+            if self._context.get('skip_account_move_synchronization'):
+                return
 
-        for pay in self.with_context(skip_account_move_synchronization=True):
+            for pay in self.with_context(skip_account_move_synchronization=True):
 
-            # After the migration to 14.0, the journal entry could be shared between the account.payment and the
-            # account.bank.statement.line. In that case, the synchronization will only be made with the statement line.
-            if pay.move_id.statement_line_id:
-                continue
+                # After the migration to 14.0, the journal entry could be shared between the account.payment and the
+                # account.bank.statement.line. In that case, the synchronization will only be made with the statement line.
+                if pay.move_id.statement_line_id:
+                    continue
 
-            move = pay.move_id
-            move_vals_to_write = {}
-            payment_vals_to_write = {}
+                move = pay.move_id
+                move_vals_to_write = {}
+                payment_vals_to_write = {}
 
-            if 'journal_id' in changed_fields:
-                if pay.journal_id.type not in ('bank', 'cash'):
-                    raise UserError(_("A payment must always belongs to a bank or cash journal."))
+                if 'journal_id' in changed_fields:
+                    if pay.journal_id.type not in ('bank', 'cash'):
+                        raise UserError(_("A payment must always belongs to a bank or cash journal."))
 
-            if 'line_ids' in changed_fields:
-                all_lines = move.line_ids
-                liquidity_lines, counterpart_lines, writeoff_lines = pay._seek_for_lines()
+                if 'line_ids' in changed_fields:
+                    all_lines = move.line_ids
+                    liquidity_lines, counterpart_lines, writeoff_lines = pay._seek_for_lines()
 
-                if len(liquidity_lines) != 1:
-                    raise UserError(_(
-                        "Journal Entry %s is not valid. In order to proceed, the journal items must "
-                        "include one and only one outstanding payments/receipts account.",
-                        move.display_name,
-                    ))
+                    if len(liquidity_lines) != 1:
+                        raise UserError(_(
+                            "Journal Entry %s is not valid. In order to proceed, the journal items must "
+                            "include one and only one outstanding payments/receipts account.",
+                            move.display_name,
+                        ))
 
-                if len(counterpart_lines) != 1:
-                    raise UserError(_(
-                        "Journal Entry %s is not valid. In order to proceed, the journal items must "
-                        "include one and only one receivable/payable account (with an exception of "
-                        "internal transfers).",
-                        move.display_name,
-                    ))
+                    if len(counterpart_lines) != 1:
+                        raise UserError(_(
+                            "Journal Entry %s is not valid. In order to proceed, the journal items must "
+                            "include one and only one receivable/payable account (with an exception of "
+                            "internal transfers).",
+                            move.display_name,
+                        ))
 
-                # if any(line.currency_id != all_lines[0].currency_id for line in all_lines):
-                #     raise UserError(_(
-                #         "Journal Entry %s is not valid. In order to proceed, the journal items must "
-                #         "share the same currency.",
-                #         move.display_name,
-                #     ))
+                    # if any(line.currency_id != all_lines[0].currency_id for line in all_lines):
+                    #     raise UserError(_(
+                    #         "Journal Entry %s is not valid. In order to proceed, the journal items must "
+                    #         "share the same currency.",
+                    #         move.display_name,
+                    #     ))
 
-                if any(line.partner_id != all_lines[0].partner_id for line in all_lines):
-                    raise UserError(_(
-                        "Journal Entry %s is not valid. In order to proceed, the journal items must "
-                        "share the same partner.",
-                        move.display_name,
-                    ))
+                    if any(line.partner_id != all_lines[0].partner_id for line in all_lines):
+                        raise UserError(_(
+                            "Journal Entry %s is not valid. In order to proceed, the journal items must "
+                            "share the same partner.",
+                            move.display_name,
+                        ))
 
-                if counterpart_lines.account_id.account_type == 'asset_receivable':
-                    partner_type = 'customer'
-                else:
-                    partner_type = 'supplier'
+                    if counterpart_lines.account_id.account_type == 'asset_receivable':
+                        partner_type = 'customer'
+                    else:
+                        partner_type = 'supplier'
 
-                liquidity_amount = liquidity_lines.amount_currency
+                    liquidity_amount = liquidity_lines.amount_currency
 
-                move_vals_to_write.update({
-                    'currency_id': liquidity_lines.currency_id.id,
-                    'partner_id': liquidity_lines.partner_id.id,
-                })
-                payment_vals_to_write.update({
-                    'amount': abs(liquidity_amount),
-                    'partner_type': partner_type,
-                    'currency_id': liquidity_lines.currency_id.id,
-                    'destination_account_id': counterpart_lines.account_id.id,
-                    'partner_id': liquidity_lines.partner_id.id,
-                })
-                if liquidity_amount > 0.0:
-                    payment_vals_to_write.update({'payment_type': 'inbound'})
-                elif liquidity_amount < 0.0:
-                    payment_vals_to_write.update({'payment_type': 'outbound'})
+                    move_vals_to_write.update({
+                        'currency_id': liquidity_lines.currency_id.id,
+                        'partner_id': liquidity_lines.partner_id.id,
+                    })
+                    payment_vals_to_write.update({
+                        'amount': abs(liquidity_amount),
+                        'partner_type': partner_type,
+                        'currency_id': liquidity_lines.currency_id.id,
+                        'destination_account_id': counterpart_lines.account_id.id,
+                        'partner_id': liquidity_lines.partner_id.id,
+                    })
+                    if liquidity_amount > 0.0:
+                        payment_vals_to_write.update({'payment_type': 'inbound'})
+                    elif liquidity_amount < 0.0:
+                        payment_vals_to_write.update({'payment_type': 'outbound'})
 
-            move.write(move._cleanup_write_orm_values(move, move_vals_to_write))
-            pay.write(move._cleanup_write_orm_values(pay, payment_vals_to_write))
+                move.write(move._cleanup_write_orm_values(move, move_vals_to_write))
+                pay.write(move._cleanup_write_orm_values(pay, payment_vals_to_write))
+        else:
+            return super()._synchronize_from_moves(changed_fields)

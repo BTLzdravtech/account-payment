@@ -51,16 +51,17 @@ class AccountPayment(models.Model):
         super(AccountPayment, self.with_context(paired_transfer=True))._create_paired_internal_transfer_payment()
 
     def action_post(self):
-        # TODO vk: lock for arg
-        for rec in self:
-            if rec.cashbox_session_id and rec.cashbox_session_id.state != 'opened':
-                raise UserError(_(
-                    "A payment (id %s) can't be posted on a pos session that is not open (session %s)'" % (
-                        rec.id, rec.cashbox_session_id.name
-                    )))
+        # DONETODO vk: lock for arg
+        if self.company_id.country_id == self.env.ref('base.ar'):
+            for rec in self:
+                if rec.cashbox_session_id and rec.cashbox_session_id.state != 'opened':
+                    raise UserError(_(
+                        "A payment (id %s) can't be posted on a pos session that is not open (session %s)'" % (
+                            rec.id, rec.cashbox_session_id.name
+                        )))
 
-            if  not self.env.context.get('paired_transfer') and self.env.user.requiere_account_cashbox_session and not rec.cashbox_session_id:
-                raise UserError(_('Your user requires to use payment session on each payment'))
+                if  not self.env.context.get('paired_transfer') and self.env.user.requiere_account_cashbox_session and not rec.cashbox_session_id:
+                    raise UserError(_('Your user requires to use payment session on each payment'))
 
         super().action_post()
 

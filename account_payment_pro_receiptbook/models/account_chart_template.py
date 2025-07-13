@@ -11,8 +11,9 @@ class AccountChartTemplate(models.AbstractModel):
     _inherit = 'account.chart.template'
 
     def _load(self, template_code, company, install_demo):
-        # TODO vk: lock only for arg
-        self._create_receiptbooks(company)
+        # DONETODO vk: lock only for arg
+        if self.company_id.country_id == self.env.ref('base.ar'):
+            self._create_receiptbooks(company)
         return super()._load(template_code, company, install_demo)
 
     @api.model

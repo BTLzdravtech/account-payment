@@ -43,10 +43,11 @@ class AccountPaymentRegister(models.TransientModel):
 
     @api.depends('payment_type', 'cashbox_session_id')
     def _compute_available_journal_ids(self):
-        # TODO vk: lock for arg
+        # DONETODO vk: lock for arg
         super()._compute_available_journal_ids()
-        for pay in self.filtered('cashbox_session_id'):
-            # hacemos dominio sobre los line_ids y no los diarios del pop config porque
-            # puede ser que sea una sesion vieja y que el setting pop config cambie
-            pay.available_journal_ids = pay.available_journal_ids._origin.filtered(
-                lambda x: x in pay.cashbox_session_id.line_ids.mapped('journal_id'))
+        if self.company_id.country_id == self.env.ref('base.ar'):
+            for pay in self.filtered('cashbox_session_id'):
+                # hacemos dominio sobre los line_ids y no los diarios del pop config porque
+                # puede ser que sea una sesion vieja y que el setting pop config cambie
+                pay.available_journal_ids = pay.available_journal_ids._origin.filtered(
+                    lambda x: x in pay.cashbox_session_id.line_ids.mapped('journal_id'))
