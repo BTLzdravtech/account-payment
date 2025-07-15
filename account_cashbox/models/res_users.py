@@ -3,7 +3,7 @@
 # directory
 ##############################################################################
 
-from odoo import models, fields
+from odoo import models, fields, api
 
 
 class ResUsers(models.Model):
@@ -16,3 +16,9 @@ class ResUsers(models.Model):
         column2='cashbox_id',
     )
     requiere_account_cashbox_session = fields.Boolean()
+
+    @api.model
+    def get_view(self, view_id=None, view_type="form", **options):
+        if view_type == "form" and self.env.company.country_code == "AR":
+            view_id = self.env.ref("account_cashbox.view_users_form_extend_ar").id
+        return super().get_view(view_id=view_id, view_type=view_type, **options)

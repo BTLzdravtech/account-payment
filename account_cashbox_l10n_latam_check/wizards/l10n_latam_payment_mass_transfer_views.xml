@@ -12,9 +12,11 @@
                 <field
                     name="cashbox_session_id"
                     domain="cashbox_session_ids_domain"
-<!--                # TODO vk: invisible-->
-                    required="requiere_account_cashbox_session"/>
+                    required="requiere_account_cashbox_session"
+                    invisible="company_id.country_code != 'AR'"
+                />
             </field>
+            <!--                # DONETODO vk: invisible-->
         </field>
     </record>
 </odoo>

@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_users_form_extend" model="ir.ui.view">
+    <record id="view_users_form_extend_ar" model="ir.ui.view">
         <field name="name">res.users.form.extend</field>
         <field name="model">res.users</field>
         <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="mode">primary</field>
         <field name="arch" type="xml">
             <group name="preferences" position="after">
-<!--                # TODO vk: lock for arg-->
+<!--                # DONETODO vk: lock for arg-->
                 <group name="pop_users_conf" string="Cajas">
                     <field name="allowed_cashbox_ids" widget="many2many_tags"/>
                     <field name="requiere_account_cashbox_session"/>

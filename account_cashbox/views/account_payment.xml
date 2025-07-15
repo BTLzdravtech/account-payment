@@ -12,9 +12,11 @@
                 <field
                     name="cashbox_session_id"
                     domain="[('state', '=', 'opened'), ('company_id', '=', company_id), '|', ('user_ids', '=', uid), ('user_ids', '=', False)]"
-<!--                # TODO vk: invisible-->
                     required="requiere_account_cashbox_session and state == 'draft'"
-                    readonly = "state != 'draft'"/>
+                    readonly = "state != 'draft'"
+                    invisible="country_code != 'AR'"
+                />
+                <!--                # DONETODO vk: invisible -->
             </field>
         </field>
     </record>
