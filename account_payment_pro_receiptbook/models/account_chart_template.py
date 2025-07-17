@@ -12,7 +12,7 @@ class AccountChartTemplate(models.AbstractModel):
 
     def _load(self, template_code, company, install_demo):
         # DONETODO vk: lock only for arg
-        if self.company_id.country_id == self.env.ref('base.ar'):
+        if self.env.company.country_id.code != 'AR':
             self._create_receiptbooks(company)
         return super()._load(template_code, company, install_demo)
 

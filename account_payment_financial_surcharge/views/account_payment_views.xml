@@ -10,22 +10,20 @@
                 <field name="available_card_ids" invisible="1"/>
                 <label for="card_id" invisible="not available_card_ids or payment_type != 'inbound'"/>
                 <div class="o_row" invisible="not available_card_ids or payment_type != 'inbound'">
-<!--                # DONETODO vk: fields must be inviisible for non arg countries because of required -->
+<!--                # TODO vk: fields must be inviisible for non arg countries because of required -->
                     <field
                         name="card_id"
                         options="{'no_create': True, 'no_open': True}"
                         domain="[('id', 'in', available_card_ids)]"
-                        required="(available_card_ids and payment_type == 'inbound') and country_code == 'AR'"
+                        required="available_card_ids and payment_type == 'inbound'"
                         readonly= "state != 'draft'"
-                        invisible="country_code != 'AR'"
                     />
                     <field
                         name="installment_id"
                         options="{'no_create': True, 'no_open': True}"
                         domain="[('card_id', '=', card_id)]"
-                        required="(card_id and payment_type =='inbound') and country_code == 'AR'"
+                        required="card_id and payment_type =='inbound'"
                         readonly= "state != 'draft'"
-                        invisible="country_code != 'AR'"
                     />
                 </div>
 

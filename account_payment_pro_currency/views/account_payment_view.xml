@@ -17,9 +17,9 @@
                 <field name="counterpart_currency_id" invisible="1"/>
             </div>
 
-            <!--                # DONETODO vk: lock only for arg-->
+            <!--                # TODO vk: lock only for arg-->
             <xpath expr="//div[@name='amount_div']//field[@name='currency_id']" position="attributes">
-                <attribute name="invisible">currency_id in [journal_currency_id, company_currency_id] or country_code != 'AR'</attribute>
+                <attribute name="invisible">currency_id in [journal_currency_id, company_currency_id]</attribute>
             </xpath>
         </field>
     </record>

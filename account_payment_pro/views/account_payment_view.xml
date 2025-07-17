@@ -31,12 +31,12 @@
         </button>
 
         <xpath expr="//field[@name='partner_id'][1]" position="attributes">
-            <!--                # DONETODO vk: lock only for arg-->
-            <attribute name="readonly">(state != 'draft' or context.get('default_company_id')) and country_code == 'AR'</attribute>
+            <!--                # TODO vk: lock only for arg-->
+            <attribute name="readonly">state != 'draft' or context.get('default_company_id')</attribute>
         </xpath>
         <xpath expr="//field[@name='partner_id'][2]" position="attributes">
-            <!--                # DONETODO vk: lock only for arg-->
-            <attribute name="readonly">(state != 'draft' or context.get('default_company_id')) and country_code == 'AR'</attribute>
+            <!--                # TODO vk: lock only for arg-->
+            <attribute name="readonly">state != 'draft' or context.get('default_company_id')</attribute>
         </xpath>
 
 
