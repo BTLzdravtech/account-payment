@@ -43,7 +43,6 @@ class AccountPaymentRegister(models.TransientModel):
 
     @api.depends('payment_type', 'cashbox_session_id')
     def _compute_available_journal_ids(self):
-        # DONETODO vk: lock for arg
         super()._compute_available_journal_ids()
         if self.company_id.country_id == self.env.ref('base.ar'):
             for pay in self.filtered('cashbox_session_id'):

@@ -10,7 +10,6 @@ class AccountMove(models.Model):
     )
 
     def _get_last_sequence_domain(self, relaxed=False):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             """ para transferencias no queremos que se enumere con el ultimo numero de asiento porque podria ser un
             pago generado por un grupo de pagos y en ese caso el numero viene dado por el talonario de recibo/pago.

@@ -67,7 +67,6 @@ class AccountPayment(models.Model):
 
     @api.model
     def default_get(self, default_fields):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             if self._context.get('open_invoice_payment', False):
                 self = self.with_context(active_ids=None, active_model=None)   # ??
@@ -79,7 +78,6 @@ class AccountPayment(models.Model):
             rec.financing_surcharge = rec.amount - rec.net_amount
 
     def action_post(self):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             """ If we have a financial surcharge in the payments we need to auto create a debit note with the surcharge """
             for rec in self.filtered(lambda p: p.financing_surcharge > 0):

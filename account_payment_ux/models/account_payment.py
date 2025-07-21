@@ -5,7 +5,6 @@ class AccountPayment(models.Model):
     _inherit = 'account.payment'
 
     def action_post(self):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             """ Odoo a partir de 16, cuando se valida un pago con token, si la transaccion no queda en done cancela el pago
             por ahora nosotros revertimos este cambio para el caso de tu cuota"""

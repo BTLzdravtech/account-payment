@@ -78,7 +78,6 @@ class AccountMove(models.Model):
         return super().button_draft()
 
     def _post(self, soft=False):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             res = super()._post(soft=soft)
             self.pay_now()
@@ -87,7 +86,6 @@ class AccountMove(models.Model):
             return super()._post(soft=soft)
 
     def _search_default_journal(self):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             if self.env.context.get('default_company_id'):
                 self.env.company =  self.env['res.company'].browse(self.env.context.get('default_company_id'))

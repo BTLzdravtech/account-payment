@@ -41,7 +41,6 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
                 rec.cashbox_session_id = False
 
     def _create_payments(self):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             self.ensure_one()
             if self.env.user.requiere_account_cashbox_session and not self.cashbox_session_id:

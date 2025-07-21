@@ -28,7 +28,6 @@ class AccountMoveLine(models.Model):
             rec.payment_matched_amount = debit_move_amount - credit_move_amount
 
     def action_register_payment(self):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             to_pay_partners = self.mapped('move_id.commercial_partner_id') or self.mapped('partner_id')
             company_pay_pro = len(self.mapped('company_id').ids) == 1 and self.mapped('company_id').use_payment_pro

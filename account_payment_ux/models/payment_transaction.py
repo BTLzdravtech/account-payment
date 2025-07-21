@@ -5,7 +5,6 @@ class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
 
     def _reconcile_after_done(self):
-        # DONETODO vk: lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             super()._reconcile_after_done()
 
@@ -27,7 +26,6 @@ class PaymentTransaction(models.Model):
             return super()._reconcile_after_done()
 
     def write(self, vals):
-        # DONETODO vk: lock for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             # Este hack es para evitar que las transacciones se marquen como post processed = True
             # Cuando las genero pendientes desde el back end

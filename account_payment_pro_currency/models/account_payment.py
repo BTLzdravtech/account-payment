@@ -119,7 +119,6 @@ class AccountPayment(models.Model):
         return res + ('counterpart_currency_id', 'counterpart_exchange_rate')
 
     def _synchronize_from_moves(self, changed_fields):
-        # DONETODO vk: moneky patch, lock only for arg
         if self.company_id.country_id == self.env.ref('base.ar'):
             # Pisamos este método para eliminar la validación de la moneda (FW de 16, en 18 no existe más la restricción)
 
