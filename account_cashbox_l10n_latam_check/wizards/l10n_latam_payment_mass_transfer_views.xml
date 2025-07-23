@@ -13,7 +13,6 @@
                     name="cashbox_session_id"
                     domain="cashbox_session_ids_domain"
                     required="requiere_account_cashbox_session"/>
-                <!--                # TODO vk: invisible (I moved this out because it broke the form view ) -->
             </field>
         </field>
     </record>

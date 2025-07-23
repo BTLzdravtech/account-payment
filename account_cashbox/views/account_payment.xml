@@ -15,7 +15,6 @@
 
                     required="requiere_account_cashbox_session and state == 'draft'"
                     readonly = "state != 'draft'"/>
-                <!--                # TODO vk: invisible (I moved this out because it broke the form view) -->
             </field>
         </field>
     </record>
