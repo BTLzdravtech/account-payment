@@ -3,7 +3,7 @@
         <field name="name">account.payment.form</field>
         <field name="model">account.payment</field>
         <field eval="16" name="priority"/>
-        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="inherit_id" ref="account_payment_pro.view_account_payment_form"/>
         <field name="arch" type="xml">
             <div name="payment_total" position="after">    
                 <label for="counterpart_currency_amount" string="Secondary Currency" invisible="other_currency or is_internal_transfer or not use_payment_pro" groups="base.group_multi_currency"/>
