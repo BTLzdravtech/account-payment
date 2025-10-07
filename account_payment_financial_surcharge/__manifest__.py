@@ -1,6 +1,6 @@
 {
     "name": "Payments with Financial Surchange",
-    "version": "17.0.1.2.0",
+    "version": "18.0.1.1.0",
     "author": "ADHOC SA",
     "license": "AGPL-3",
     "category": "Payment",
@@ -9,16 +9,16 @@
         "card_installment",
     ],
     "data": [
-        'views/card_installment_view.xml',
-        'views/account_journal_views.xml',
-        'views/account_payment_views.xml',
-        'views/account_move_views.xml',
-        'wizards/res_config_settings_views.xml',
+        "views/card_installment_view.xml",
+        "views/account_journal_views.xml",
+        "views/account_payment_views.xml",
+        "views/account_move_views.xml",
+        "wizards/res_config_settings_views.xml",
     ],
-    "demo": [
-    ],
-    'images': [
-    ],
-    'installable': False,
-    'auto_install': False,
+    "demo": [],
+    "images": [],
+    "installable": True,
+    "auto_install": False,
+    "post_load": "monkey_patches",
+    "uninstall_hook": "uninstall_hook",
 }

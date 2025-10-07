@@ -3,17 +3,15 @@
 # 	* account_payment_pro_receiptbook
 # 
 # Translators:
-# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024
-# Gonzalo, 2024
-# Rocio Vega, 2024
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025
 # 
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 17.0+e\n"
+"Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-09-26 14:04+0000\n"
-"PO-Revision-Date: 2024-04-17 02:26+0000\n"
-"Last-Translator: Rocio Vega, 2024\n"
+"POT-Creation-Date: 2025-07-04 21:14+0000\n"
+"PO-Revision-Date: 2024-11-13 15:02+0000\n"
+"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025\n"
 "Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -54,9 +52,25 @@ msgstr ""
 "como stock.picking)"
 
 #. module: account_payment_pro_receiptbook
+#: model_terms:ir.ui.view,arch_db:account_payment_pro_receiptbook.view_receipt_receiptbook_form
+#: model_terms:ir.ui.view,arch_db:account_payment_pro_receiptbook.view_receipt_receiptbook_search
+msgid "Archived"
+msgstr ""
+
+#. module: account_payment_pro_receiptbook
+#: model:ir.model,name:account_payment_pro_receiptbook.model_res_company
+msgid "Companies"
+msgstr "Compañías"
+
+#. module: account_payment_pro_receiptbook
 #: model:ir.model.fields,field_description:account_payment_pro_receiptbook.field_account_payment_receiptbook__company_id
 msgid "Company"
 msgstr "Empresa"
+
+#. module: account_payment_pro_receiptbook
+#: model:ir.model,name:account_payment_pro_receiptbook.model_res_config_settings
+msgid "Config Settings"
+msgstr "Ajustes de configuración"
 
 #. module: account_payment_pro_receiptbook
 #: model:ir.model.fields,field_description:account_payment_pro_receiptbook.field_l10n_latam_document_type__country_id
@@ -91,7 +105,6 @@ msgstr "Recibo de Cliente"
 #. module: account_payment_pro_receiptbook
 #. odoo-python
 #: code:addons/account_payment_pro_receiptbook/models/account_chart_template.py:0
-#, python-format
 msgid "Customer Receipts"
 msgstr "Recibos de Cliente"
 
@@ -111,6 +124,11 @@ msgid "Email Template"
 msgstr "Plantilla de correo electrónico"
 
 #. module: account_payment_pro_receiptbook
+#: model_terms:ir.ui.view,arch_db:account_payment_pro_receiptbook.res_config_settings_view_form
+msgid "Enable this option to use receipt books for managing payments."
+msgstr ""
+
+#. module: account_payment_pro_receiptbook
 #: model:ir.model.fields,field_description:account_payment_pro_receiptbook.field_account_payment_receiptbook__sequence_id
 msgid "Entry Sequence"
 msgstr "Secuencia de Asiento"
@@ -118,7 +136,14 @@ msgstr "Secuencia de Asiento"
 #. module: account_payment_pro_receiptbook
 #. odoo-python
 #: code:addons/account_payment_pro_receiptbook/models/account_payment.py:0
-#, python-format
+msgid ""
+"Error! The receiptbook \"%s\" is archived. Please use a differente "
+"receipbook."
+msgstr ""
+
+#. module: account_payment_pro_receiptbook
+#. odoo-python
+#: code:addons/account_payment_pro_receiptbook/models/account_payment.py:0
 msgid ""
 "Error!. Please define sequence on the receiptbook related documents to this "
 "payment."
@@ -144,6 +169,11 @@ msgstr ""
 #: model:ir.model.fields,field_description:account_payment_pro_receiptbook.field_l10n_latam_document_type__internal_type
 msgid "Internal Type"
 msgstr "Tipo interno"
+
+#. module: account_payment_pro_receiptbook
+#: model:ir.model,name:account_payment_pro_receiptbook.model_account_journal
+msgid "Journal"
+msgstr "Diario"
 
 #. module: account_payment_pro_receiptbook
 #: model:ir.model,name:account_payment_pro_receiptbook.model_account_move
@@ -195,6 +225,11 @@ msgid "Partner Type"
 msgstr "Tipo de Empresa"
 
 #. module: account_payment_pro_receiptbook
+#: model:ir.model,name:account_payment_pro_receiptbook.model_account_payment_register
+msgid "Pay"
+msgstr "Pagar"
+
+#. module: account_payment_pro_receiptbook
 #: model:ir.model,name:account_payment_pro_receiptbook.model_account_payment
 msgid "Payments"
 msgstr "Pagos"
@@ -235,6 +270,11 @@ msgid "Receiptbooks"
 msgstr "Talonarios de Recibos"
 
 #. module: account_payment_pro_receiptbook
+#: model:ir.model,name:account_payment_pro_receiptbook.model_account_resequence_wizard
+msgid "Remake the sequence of Journal Entries."
+msgstr "Haga de nuevo la secuencia de asientos contables."
+
+#. module: account_payment_pro_receiptbook
 #: model:ir.model.fields,field_description:account_payment_pro_receiptbook.field_account_payment_receiptbook__report_partner_id
 msgid "Report Partner"
 msgstr "Reporte del Contacto"
@@ -252,9 +292,32 @@ msgstr "Pago de Proveedores"
 #. module: account_payment_pro_receiptbook
 #. odoo-python
 #: code:addons/account_payment_pro_receiptbook/models/account_chart_template.py:0
-#, python-format
 msgid "Supplier Payments"
 msgstr "Pagos de Proveedores"
+
+#. module: account_payment_pro_receiptbook
+#. odoo-python
+#: code:addons/account_payment_pro_receiptbook/wizard/account_resequence.py:0
+msgid ""
+"The following receipt names already exist:\n"
+"%s"
+msgstr ""
+
+#. module: account_payment_pro_receiptbook
+#. odoo-python
+#: code:addons/account_payment_pro_receiptbook/__init__.py:0
+msgid ""
+"The sequences of this journal are different for Invoices and Refunds but you"
+" selected some of both types."
+msgstr ""
+
+#. module: account_payment_pro_receiptbook
+#. odoo-python
+#: code:addons/account_payment_pro_receiptbook/__init__.py:0
+msgid ""
+"The sequences of this journal are different for Payments and non-Payments "
+"but you selected some of both types."
+msgstr ""
 
 #. module: account_payment_pro_receiptbook
 #: model:ir.model.fields,help:account_payment_pro_receiptbook.field_account_payment_receiptbook__sequence_id
@@ -266,6 +329,14 @@ msgstr ""
 "asientos de recibo de este talonario."
 
 #. module: account_payment_pro_receiptbook
+#: model:ir.model.fields,field_description:account_payment_pro_receiptbook.field_account_journal__use_receiptbook
+#: model:ir.model.fields,field_description:account_payment_pro_receiptbook.field_res_company__use_receiptbook
+#: model:ir.model.fields,field_description:account_payment_pro_receiptbook.field_res_config_settings__use_receiptbook
+#: model_terms:ir.ui.view,arch_db:account_payment_pro_receiptbook.res_config_settings_view_form
+msgid "Use Receiptbook"
+msgstr ""
+
+#. module: account_payment_pro_receiptbook
 #: model:ir.model.fields,help:account_payment_pro_receiptbook.field_account_payment_receiptbook__sequence
 msgid "Used to order the receiptbooks"
 msgstr "Se utiliza para ordenar los talonarios de recibos"
@@ -274,3 +345,23 @@ msgstr "Se utiliza para ordenar los talonarios de recibos"
 #: model:ir.model.fields.selection,name:account_payment_pro_receiptbook.selection__account_payment_receiptbook__partner_type__supplier
 msgid "Vendor"
 msgstr "Proveedor"
+
+#. module: account_payment_pro_receiptbook
+#. odoo-python
+#: code:addons/account_payment_pro_receiptbook/__init__.py:0
+msgid "You can only resequence items from the same journal"
+msgstr ""
+
+#. module: account_payment_pro_receiptbook
+#. odoo-python
+#: code:addons/account_payment_pro_receiptbook/__init__.py:0
+msgid "You can only resequence items from the same receiptbook"
+msgstr ""
+
+#. module: account_payment_pro_receiptbook
+#. odoo-python
+#: code:addons/account_payment_pro_receiptbook/__init__.py:0
+msgid ""
+"You can only resequence items if all selected moves belong to the same "
+"receiptbook, or if none have a receiptbook assigned."
+msgstr ""

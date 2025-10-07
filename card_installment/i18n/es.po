@@ -3,16 +3,15 @@
 # 	* card_installment
 # 
 # Translators:
-# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024
-# Gonzalo, 2024
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025
 # 
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 17.0+e\n"
+"Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-09-02 20:58+0000\n"
-"PO-Revision-Date: 2023-12-13 14:43+0000\n"
-"Last-Translator: Gonzalo, 2024\n"
+"POT-Creation-Date: 2025-08-20 21:20+0000\n"
+"PO-Revision-Date: 2024-11-14 20:13+0000\n"
+"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025\n"
 "Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -23,7 +22,6 @@ msgstr ""
 #. module: card_installment
 #. odoo-python
 #: code:addons/card_installment/models/account_card_installment.py:0
-#, python-format
 msgid "%s installment of %.2f (total %.2f)"
 msgstr "%s cuota de $%.2f (total $%.2f)"
 
@@ -103,12 +101,19 @@ msgstr "Nombre a Mostrar"
 #. module: card_installment
 #: model:ir.model.fields,field_description:card_installment.field_account_card_installment__divisor
 msgid "Divisor"
-msgstr "Divisor"
+msgstr ""
+
+#. module: card_installment
+#. odoo-python
+#: code:addons/card_installment/models/account_card_installment.py:0
+msgid "Divisor cannot be negative"
+msgstr ""
 
 #. module: card_installment
 #: model:ir.model.fields,help:card_installment.field_account_card_installment__surcharge_coefficient
 msgid ""
-"Factor a aplicar sobre el monto total para calcular el cargo financiero"
+"Factor a aplicar sobre el monto total para calcular el cargo financiero. Por"
+" ejemplo el formato para el recargo de un 6% se aplica con el valor 1.06."
 msgstr "Coeficiente con IVA incluído"
 
 #. module: card_installment
@@ -159,7 +164,7 @@ msgstr "Última actualización el"
 #. module: card_installment
 #: model:ir.model.fields,help:card_installment.field_account_card_installment__name
 msgid "Nombre informativo del plan a mostrar"
-msgstr "Nombre informativo del plan a mostrar"
+msgstr ""
 
 #. module: card_installment
 #: model:ir.model.fields,help:card_installment.field_account_card_installment__divisor
@@ -167,8 +172,6 @@ msgid ""
 "Número por el cual se dividirá el total de cuotas que pagará el usuario "
 "final"
 msgstr ""
-"Número por el cual se dividirá el total de cuotas que pagará el usuario "
-"final"
 
 #. module: card_installment
 #: model:ir.model.fields,help:card_installment.field_account_card_installment__installment
@@ -199,7 +202,7 @@ msgstr "Coeficiente"
 #. module: card_installment
 #: model:ir.model,name:card_installment.model_account_card_installment
 msgid "amount to add for collection in installments"
-msgstr "Importe a agregar para la cobranza en cuotas"
+msgstr "CCantidad a añadir para cobro en cuotas"
 
 #. module: card_installment
 #: model:ir.model.fields,field_description:card_installment.field_account_card__name

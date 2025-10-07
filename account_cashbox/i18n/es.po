@@ -3,17 +3,16 @@
 # 	* account_cashbox
 # 
 # Translators:
-# Gonzalo, 2024
-# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024
-# Camila Vives, 2024
+# Camila Vives, 2025
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025
 # 
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 17.0+e\n"
+"Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-09-16 12:43+0000\n"
-"PO-Revision-Date: 2023-12-28 20:16+0000\n"
-"Last-Translator: Camila Vives, 2024\n"
+"POT-Creation-Date: 2025-07-22 12:04+0000\n"
+"PO-Revision-Date: 2024-11-29 14:48+0000\n"
+"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025\n"
 "Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -22,9 +21,18 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
 
 #. module: account_cashbox
-#: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_kanban
-msgid "<i class=\"fa fa-ellipsis-v\" role=\"img\" aria-label=\"Manage\" title=\"Manage\"/>"
-msgstr "<i class=\"fa fa-ellipsis-v\" role=\"img\" aria-label=\"Manage\" title=\"Manage\"/>"
+#: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_rounding_adjustment_wizard
+msgid ""
+"<b>Rounding Difference Detected</b><br/>\n"
+"                        There is a discrepancy between the expected and actual cash balances in your journals.<br/>\n"
+"                        To resolve this, you can automatically generate journal entries for the rounding difference by clicking <b>Create Journal Entries</b>.<br/>\n"
+"                        If you prefer not to create these entries, click <b>Don't create entries and close</b> to exit without changes."
+msgstr ""
+
+#. module: account_cashbox
+#: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_session_form
+msgid "<span>Adjustment Entries</span>"
+msgstr ""
 
 #. module: account_cashbox
 #: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_session_form
@@ -44,10 +52,9 @@ msgstr "Pagos"
 #. module: account_cashbox
 #. odoo-python
 #: code:addons/account_cashbox/models/account_payment.py:0
-#, python-format
 msgid ""
 "A payment (id %s) can't be posted on a pos session that is not open (session"
-" %s)'"
+" %s)"
 msgstr ""
 "El pago (id 1%s) no puede ser validado en una sesión que no está abierta "
 "(sesión 1%s)"
@@ -81,7 +88,7 @@ msgstr "Ícono de Tipo de Actividad"
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__allow_concurrent_sessions
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__allow_concurrent_sessions
 msgid "Allow Concurrent Sessions"
-msgstr "Permitir sesiones recurrentes"
+msgstr "Permitir sesiones concurrentes"
 
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__allow_dates_edition
@@ -121,24 +128,27 @@ msgstr "Saldo Inicial"
 
 #. module: account_cashbox
 #: model:account.journal,name:account_cashbox.journal_billetera_virtual
-msgid "Billetera Virtual"
+msgid "Billetera Virtual - A"
 msgstr ""
 
 #. module: account_cashbox
 #: model:account.journal,name:account_cashbox.journal_caja_central
-msgid "Caja Central"
+msgid "Caja Central - A"
 msgstr ""
 
 #. module: account_cashbox
-#: model:account.journal,name:account_cashbox.journal_cajas
 #: model_terms:ir.ui.view,arch_db:account_cashbox.view_users_form_extend
 msgid "Cajas"
 msgstr ""
 
 #. module: account_cashbox
+#: model:account.journal,name:account_cashbox.journal_cajas
+msgid "Cajas - A"
+msgstr ""
+
+#. module: account_cashbox
 #. odoo-python
 #: code:addons/account_cashbox/models/account_payment.py:0
-#, python-format
 msgid "Can't cancel a payment on a closed payment session. Payment ids: %s"
 msgstr "No puede cancelar un pago de una sesión cerrada. Id del pago: 1%s"
 
@@ -159,25 +169,35 @@ msgid "Cashbox"
 msgstr "Cajas"
 
 #. module: account_cashbox
+#: model:ir.model,name:account_cashbox.model_account_cashbox_rounding_adjustment_wizard
+msgid "Cashbox Rounding Adjustment"
+msgstr ""
+
+#. module: account_cashbox
+#: model:ir.model.fields,field_description:account_cashbox.field_account_bank_statement_line__cashbox_session_id
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_payment_import__cashbox_session_id
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_rounding_adjustment_wizard__cashbox_session_id
+#: model:ir.model.fields,field_description:account_cashbox.field_account_move__cashbox_session_id
 msgid "Cashbox Session"
 msgstr "Sesión de Caja"
 
 #. module: account_cashbox
+#: model:ir.ui.menu,name:account_cashbox.menu_account_cashbox
 #: model_terms:ir.actions.act_window,help:account_cashbox.account_cashbox_action
 #: model_terms:ir.actions.act_window,help:account_cashbox.account_cashbox_settings_action
 msgid "Cashbox management"
 msgstr "Gestión de Cajas"
 
 #. module: account_cashbox
-#: model:ir.ui.menu,name:account_cashbox.menu_account_cashbox
-msgid "Cashbox manangment"
-msgstr "Gestión de Cajas"
-
-#. module: account_cashbox
 #: model:ir.model,name:account_cashbox.model_account_cashbox_session
 msgid "Cashbox session"
 msgstr "Sesión de Caja"
+
+#. module: account_cashbox
+#: model:ir.model.fields,help:account_cashbox.field_account_bank_statement_line__cashbox_session_id
+#: model:ir.model.fields,help:account_cashbox.field_account_move__cashbox_session_id
+msgid "Cashbox session associated with this move."
+msgstr ""
 
 #. module: account_cashbox
 #: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_session_form
@@ -203,12 +223,17 @@ msgstr "Compañía"
 #. module: account_cashbox
 #: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_session_form
 msgid "Control"
-msgstr ""
+msgstr "Controlar"
 
 #. module: account_cashbox
 #: model:ir.model.constraint,message:account_cashbox.constraint_account_cashbox_session_line_uniq_line
 msgid "Control line must be unique"
 msgstr "La linea de control debe ser única"
+
+#. module: account_cashbox
+#: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_rounding_adjustment_wizard
+msgid "Create Journal Entries"
+msgstr ""
 
 #. module: account_cashbox
 #: model_terms:ir.actions.act_window,help:account_cashbox.account_cashbox_action
@@ -219,6 +244,7 @@ msgstr "Crear Caja"
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__create_uid
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_payment_import__create_uid
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_rounding_adjustment_wizard__create_uid
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__create_uid
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session_line__create_uid
 msgid "Created by"
@@ -227,6 +253,7 @@ msgstr "Creado por"
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__create_date
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_payment_import__create_date
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_rounding_adjustment_wizard__create_date
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__create_date
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session_line__create_date
 msgid "Created on"
@@ -248,12 +275,28 @@ msgid "Current Sessions"
 msgstr "Sesiones actuales"
 
 #. module: account_cashbox
+#: model:ir.model.fields,field_description:account_cashbox.field_res_users__default_cashbox_id
+msgid "Default Cashbox"
+msgstr ""
+
+#. module: account_cashbox
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session_line__balance_difference
+msgid "Difference"
+msgstr ""
+
+#. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__display_name
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_payment_import__display_name
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_rounding_adjustment_wizard__display_name
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__display_name
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session_line__display_name
 msgid "Display Name"
 msgstr "Nombre a Mostrar"
+
+#. module: account_cashbox
+#: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_rounding_adjustment_wizard
+msgid "Don't create entries and close"
+msgstr ""
 
 #. module: account_cashbox
 #: model:ir.model.fields.selection,name:account_cashbox.selection__account_cashbox_session__state__draft
@@ -273,10 +316,9 @@ msgstr ""
 #. module: account_cashbox
 #. odoo-python
 #: code:addons/account_cashbox/models/account_cashbox_session.py:0
-#, python-format
 msgid ""
-"En el diario \"%s\" el Balance Final Real (%s) excede la máxima diferencia "
-"permitida (%s)."
+"En el diario \"%s\" la diferencia del Balance Final Real (%s) excede la "
+"máxima diferencia permitida (%s)."
 msgstr ""
 
 #. module: account_cashbox
@@ -307,6 +349,7 @@ msgstr "Tiene Mensaje"
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__id
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_payment_import__id
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_rounding_adjustment_wizard__id
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__id
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session_line__id
 msgid "ID"
@@ -357,9 +400,15 @@ msgstr "Importar pago en la sesión"
 #. module: account_cashbox
 #. odoo-python
 #: code:addons/account_cashbox/models/account_cashbox_session.py:0
-#, python-format
 msgid "Import payment"
 msgstr "Importar pago"
+
+#. module: account_cashbox
+#: model:ir.model.fields,help:account_cashbox.field_res_users__default_cashbox_id
+msgid ""
+"In the case of concurrent sessions in the selected cashbox,\n"
+"        the most recently created session for that cashbox will be assigned to the payments."
+msgstr ""
 
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__message_is_follower
@@ -372,6 +421,11 @@ msgid "Journal"
 msgstr "Diario"
 
 #. module: account_cashbox
+#: model:ir.model,name:account_cashbox.model_account_move
+msgid "Journal Entry"
+msgstr "Asiento contable"
+
+#. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__cash_control_journal_ids
 msgid "Journals with Open / Close control"
 msgstr "Diarios con control de Apertura/Cierre"
@@ -379,6 +433,7 @@ msgstr "Diarios con control de Apertura/Cierre"
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__write_uid
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_payment_import__write_uid
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_rounding_adjustment_wizard__write_uid
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__write_uid
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session_line__write_uid
 msgid "Last Updated by"
@@ -387,6 +442,7 @@ msgstr "Última actualización por"
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__write_date
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_payment_import__write_date
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_rounding_adjustment_wizard__write_date
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__write_date
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session_line__write_date
 msgid "Last Updated on"
@@ -404,14 +460,14 @@ msgstr "Listar Sesiones"
 
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox__max_diff
-msgid "Max Diff"
+msgid "Max Allowed Difference"
 msgstr "Maxima diferencia tolerable"
 
 #. module: account_cashbox
 #: model:ir.model.fields,help:account_cashbox.field_account_cashbox__max_diff
 msgid ""
-"Max allowed difference for Cash Control Journals on the currency of the "
-"company"
+"Maximum allowed difference for Cash Control Journals in the company's "
+"currency (per journal)."
 msgstr "Diferencia máxima permitida para el control de caja en la compañia."
 
 #. module: account_cashbox
@@ -439,6 +495,11 @@ msgstr "Nombre"
 #: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_kanban
 msgid "New Session"
 msgstr "Nueva sesión"
+
+#. module: account_cashbox
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr ""
 
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__activity_date_deadline
@@ -508,6 +569,11 @@ msgid "POP Session"
 msgstr "Sesión"
 
 #. module: account_cashbox
+#: model:ir.model,name:account_cashbox.model_account_payment_register
+msgid "Pay"
+msgstr "Pagar"
+
+#. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__payment_ids
 msgid "Payment"
 msgstr "Pago"
@@ -530,6 +596,11 @@ msgid "Published"
 msgstr "Publicado"
 
 #. module: account_cashbox
+#: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__rating_ids
+msgid "Ratings"
+msgstr ""
+
+#. module: account_cashbox
 #: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_session_form
 msgid "Re-Open"
 msgstr "Re Abrir"
@@ -540,16 +611,16 @@ msgid "Real Ending Balance"
 msgstr "Saldo Final Real"
 
 #. module: account_cashbox
-#: model:ir.model,name:account_cashbox.model_account_payment_register
-msgid "Register Payment"
-msgstr "Registrar pago"
-
-#. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_payment__requiere_account_cashbox_session
 #: model:ir.model.fields,field_description:account_cashbox.field_account_payment_register__requiere_account_cashbox_session
 #: model:ir.model.fields,field_description:account_cashbox.field_res_users__requiere_account_cashbox_session
 msgid "Requiere Account Cashbox Session"
 msgstr "Requiere Sesión de Caja"
+
+#. module: account_cashbox
+#: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_session_form
+msgid "Reset to draft"
+msgstr ""
 
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__activity_user_id
@@ -561,6 +632,13 @@ msgstr "Usuario responsable"
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__restrict_users
 msgid "Restrict Users"
 msgstr "Restringir Usuarios"
+
+#. module: account_cashbox
+#. odoo-python
+#: code:addons/account_cashbox/models/account_cashbox_session.py:0
+#: model_terms:ir.ui.view,arch_db:account_cashbox.view_account_cashbox_rounding_adjustment_wizard
+msgid "Rounding Adjustment"
+msgstr ""
 
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__message_has_sms_error
@@ -616,9 +694,21 @@ msgstr ""
 #. module: account_cashbox
 #. odoo-python
 #: code:addons/account_cashbox/models/account_payment.py:0
-#, python-format
 msgid "The currency of the journal must be the of the payment."
 msgstr "La moneda del diario debe coincidir con la moneda del pago."
+
+#. module: account_cashbox
+#: model:ir.model.fields,help:account_cashbox.field_account_cashbox_session_line__balance_difference
+msgid "The difference between the ending balance and the real ending balance"
+msgstr ""
+
+#. module: account_cashbox
+#. odoo-python
+#: code:addons/account_cashbox/models/account_cashbox.py:0
+msgid ""
+"The following journals: %s have Open/Close control enabled. Please disable "
+"this setting before removing them from the payment methods."
+msgstr ""
 
 #. module: account_cashbox
 #: model:ir.model.fields,help:account_cashbox.field_account_cashbox_session__activity_exception_decoration
@@ -638,7 +728,7 @@ msgstr "Validar"
 
 #. module: account_cashbox
 #: model:account.journal,name:account_cashbox.journal_viaticos
-msgid "Viaticos"
+msgid "Viaticos - A"
 msgstr ""
 
 #. module: account_cashbox
@@ -659,30 +749,36 @@ msgstr "Historial de comunicación del sitio web"
 #. module: account_cashbox
 #. odoo-python
 #: code:addons/account_cashbox/models/account_cashbox_session.py:0
-#, python-format
 msgid "You can only delete sessions in \"OPEN CONTROL\" status."
 msgstr "Solo puede borrar sesiones en estado \"Borrador\""
 
 #. module: account_cashbox
 #. odoo-python
 #: code:addons/account_cashbox/models/account_cashbox_session.py:0
-#, python-format
 msgid "You can only have one open Session for %s"
 msgstr "Solo puede tener una Sesion Abierta para %s"
 
 #. module: account_cashbox
 #. odoo-python
 #: code:addons/account_cashbox/models/account_cashbox.py:0
-#, python-format
 msgid "You cannot delete Point of Payments with sessions."
 msgstr "No es posible eliminar puntos de pagos con sesiones. "
 
 #. module: account_cashbox
 #. odoo-python
+#: code:addons/account_cashbox/models/account_cashbox_session.py:0
+msgid ""
+"You must enter a Real Ending Balance for all journals with cash "
+"controlbefore closing the session."
+msgstr ""
+
+#. module: account_cashbox
+#. odoo-python
 #: code:addons/account_cashbox/models/account_payment.py:0
-#, python-format
-msgid "Your user requires to use payment session on each payment"
-msgstr "Su usuario requiere que use sesiones de caja en cada pago"
+msgid ""
+"Your user is required to use a payment session for each payment,\n"
+"                        but no default cashbox is assigned or no session is open for the user."
+msgstr ""
 
 #. module: account_cashbox
 #: model:ir.model.fields,field_description:account_cashbox.field_account_cashbox_session__require_cash_control

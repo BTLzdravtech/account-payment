@@ -3,17 +3,16 @@
 # 	* account_payment_pro
 # 
 # Translators:
-# Rocio Vega, 2024
-# Gonzalo, 2024
-# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025
+# Gonzalo, 2025
 # 
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 17.0+e\n"
+"Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-09-26 14:04+0000\n"
-"PO-Revision-Date: 2024-01-19 13:12+0000\n"
-"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024\n"
+"POT-Creation-Date: 2025-07-22 23:59+0000\n"
+"PO-Revision-Date: 2024-11-13 11:47+0000\n"
+"Last-Translator: Gonzalo, 2025\n"
 "Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -27,35 +26,14 @@ msgid "(difference"
 msgstr "(diferencia"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.latam_check_view_account_payment_form_inherited
 msgid "+ Credit Note"
-msgstr "+ Nota de Crédito"
+msgstr "+ Nota de Cŕedito"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.latam_check_view_account_payment_form_inherited
 msgid "+ Debit Note"
 msgstr "+ Nota de Débito"
-
-#. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
-msgid ""
-"<span class=\"badge rounded-pill text-bg-warning float-end fs-6\" invisible=\"not requiere_double_validation\">\n"
-"                <i class=\"fa fa-fw fa-remove\" aria-label=\"Requiere double validation\" title=\"double_validation\" role=\"img\"/>\n"
-"                <span class=\"d-none d-md-inline\">Requiere double validation</span>\n"
-"            </span>\n"
-"            <span class=\"badge rounded-pill text-bg-success float-end fs-6\" invisible=\"not is_approved\">\n"
-"                <i class=\"fa fa-fw fa-check\" aria-label=\"Approved\" title=\"Approved\" role=\"img\"/>\n"
-"                <span class=\"d-none d-md-inline\">Approved</span>\n"
-"            </span>"
-msgstr ""
-"<span class=\"badge rounded-pill text-bg-warning float-end fs-6\" invisible=\"not requiere_double_validation\">\n"
-"                <i class=\"fa fa-fw fa-remove\" aria-label=\"Requiere double validation\" title=\"double_validation\" role=\"img\"/>\n"
-"                <span class=\"d-none d-md-inline\">Requiere doble validación</span>\n"
-"            </span>\n"
-"            <span class=\"badge rounded-pill text-bg-success float-end fs-6\" invisible=\"not is_approved\">\n"
-"                <i class=\"fa fa-fw fa-check\" aria-label=\"Approved\" title=\"Approved\" role=\"img\"/>\n"
-"                <span class=\"d-none d-md-inline\">Aprobado</span>\n"
-"            </span>"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_write_off_type__account_id
@@ -73,9 +51,9 @@ msgid "Active"
 msgstr "Activo"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.latam_check_view_account_payment_form_inherited
 msgid "Add All / Refresh"
-msgstr "Añadir todo / Refrescar"
+msgstr "Añadir Todo / Refrescar"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__unreconciled_amount
@@ -85,7 +63,6 @@ msgstr "Ajuste / Adelanto"
 #. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/models/account_payment.py:0
-#, python-format
 msgid "All to pay lines must be of the same partner"
 msgstr "Todas las líneas a pagar deben ser del mismo contacto."
 
@@ -95,9 +72,45 @@ msgid "Allow pay now on customer invoices"
 msgstr "Permitir pago directo en facturas de clientes."
 
 #. module: account_payment_pro
+#: model:ir.model.fields,field_description:account_payment_pro.field_res_config_settings__group_pay_now_customer_invoices
+msgid "Allow pay now on customer invoices?"
+msgstr "Permitir pago directo en facturas de clientes?"
+
+#. module: account_payment_pro
 #: model:res.groups,name:account_payment_pro.group_pay_now_vendor_invoices
 msgid "Allow pay now on vendor invoices"
 msgstr "Permitir pago directo en facturas de proveedores."
+
+#. module: account_payment_pro
+#: model:ir.model.fields,field_description:account_payment_pro.field_res_config_settings__group_pay_now_vendor_invoices
+msgid "Allow pay now on vendor invoices?"
+msgstr "Permitir pago directo en facturas de proveedores?"
+
+#. module: account_payment_pro
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.res_config_settings_view_form
+msgid "Allow to pay customer invoices automatically on invoice validation."
+msgstr ""
+"Permitir pagar las facturas de los clientes automáticamente al validar la "
+"factura."
+
+#. module: account_payment_pro
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.res_config_settings_view_form
+msgid "Allow to pay vendor invoices automatically on invoice validation."
+msgstr ""
+"Permitir pagar las facturas de los proveedores automáticamente al validar la"
+" factura."
+
+#. module: account_payment_pro
+#: model:ir.model.fields,help:account_payment_pro.field_res_config_settings__group_pay_now_vendor_invoices
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.res_config_settings_view_form
+msgid ""
+"Allow users to choose a payment journal on invoices so that invoice is "
+"automatically paid after invoice validation. A payment will be created using"
+" choosen journal"
+msgstr ""
+"Permitir a los usuarios elegir un diario de pagos en las facturas para que "
+"la factura se pague automáticamente después de su validación. Se creará un "
+"pago utilizando el diario elegido."
 
 #. module: account_payment_pro
 #: model_terms:ir.ui.view,arch_db:account_payment_pro.view_move_line_tree
@@ -120,30 +133,15 @@ msgid "Analytic Distribution"
 msgstr "Distribución Analítica"
 
 #. module: account_payment_pro
-#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__analytic_distribution_search
-msgid "Analytic Distribution Search"
-msgstr "Buscar Distribución Analítica"
-
-#. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__analytic_precision
 msgid "Analytic Precision"
 msgstr "Precisión Analítica"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_supplier_payment_tree
-msgid "Approve"
-msgstr "Aprobar"
-
-#. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__available_journal_ids
+#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__available_journal_ids
 msgid "Available Journal"
 msgstr "Diario disponible"
-
-#. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
-msgid "Back to Edit"
-msgstr "Editar"
 
 #. module: account_payment_pro
 #: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_invoice_wizard
@@ -151,13 +149,18 @@ msgid "Cancel"
 msgstr "Cancelar"
 
 #. module: account_payment_pro
+#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__commercial_partner_id
+msgid "Commercial Entity"
+msgstr "Entidad Comercial"
+
+#. module: account_payment_pro
 #: model:ir.model,name:account_payment_pro.model_res_company
+#: model:ir.model.fields,field_description:account_payment_pro.field_account_write_off_type__company_ids
 msgid "Companies"
 msgstr "Compañías"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__company_id
-#: model:ir.model.fields,field_description:account_payment_pro.field_account_write_off_type__company_id
 msgid "Company"
 msgstr "Compañía"
 
@@ -175,6 +178,21 @@ msgstr "Confirmar"
 #: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
 msgid "Confirm and New"
 msgstr "Confirmar y Nuevo"
+
+#. module: account_payment_pro
+#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__counterpart_currency_id
+msgid "Counterpart Currency"
+msgstr "Moneda de Imputación"
+
+#. module: account_payment_pro
+#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__counterpart_currency_amount
+msgid "Counterpart Currency Amount"
+msgstr "Importe total a imputar"
+
+#. module: account_payment_pro
+#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__counterpart_exchange_rate
+msgid "Counterpart Exchange Rate"
+msgstr "Tasa de Imputación"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__create_uid
@@ -204,7 +222,7 @@ msgid "Currency"
 msgstr "Moneda"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.latam_check_view_account_payment_form_inherited
 msgid "Debts"
 msgstr "Deudas"
 
@@ -221,6 +239,11 @@ msgid "Display Name"
 msgstr "Nombre"
 
 #. module: account_payment_pro
+#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__distribution_analytic_account_ids
+msgid "Distribution Analytic Account"
+msgstr "Cuenta de Distribución Analítica"
+
+#. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__document_number
 msgid "Document Number"
 msgstr "Número de Documento"
@@ -230,12 +253,6 @@ msgstr "Número de Documento"
 #: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_invoice_wizard
 msgid "Document Type"
 msgstr "Tipo de Documentos"
-
-#. module: account_payment_pro
-#: model:ir.model.fields,field_description:account_payment_pro.field_res_company__double_validation
-#: model:ir.model.fields,field_description:account_payment_pro.field_res_config_settings__double_validation
-msgid "Double Validation on Payments?"
-msgstr "Doble Validación de Pagos"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__exchange_rate
@@ -274,7 +291,6 @@ msgstr ""
 #. module: account_payment_pro
 #: model:ir.model.fields,help:account_payment_pro.field_account_bank_statement_line__pay_now_journal_id
 #: model:ir.model.fields,help:account_payment_pro.field_account_move__pay_now_journal_id
-#: model:ir.model.fields,help:account_payment_pro.field_account_payment__pay_now_journal_id
 msgid ""
 "If you set a journal here, after invoice validation, the invoice will be "
 "automatically paid with this journal. As manual paymentmethod is used, only "
@@ -289,6 +305,11 @@ msgstr ""
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__journal_id
 msgid "Journal"
 msgstr "Diario"
+
+#. module: account_payment_pro
+#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__journal_currency_id
+msgid "Journal Currency"
+msgstr "Moneda del Diario"
 
 #. module: account_payment_pro
 #: model:ir.model,name:account_payment_pro.model_account_move
@@ -308,7 +329,6 @@ msgstr "Apuntes Contables"
 #. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/models/account_journal.py:0
-#, python-format
 msgid "Journal must have manual method!"
 msgstr "Diario debe contener un método de pago \"Manual\""
 
@@ -316,16 +336,6 @@ msgstr "Diario debe contener un método de pago \"Manual\""
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_write_off_type__label
 msgid "Label"
 msgstr "Etiqueta"
-
-#. module: account_payment_pro
-#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__label_destination_journal_id
-msgid "Label Destination Journal"
-msgstr "Etiqueta Diario Destino"
-
-#. module: account_payment_pro
-#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__label_journal_id
-msgid "Label Journal"
-msgstr "Etiqueta Diario"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,help:account_payment_pro.field_account_write_off_type__label
@@ -378,14 +388,8 @@ msgid "Name"
 msgstr "Nombre"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_search
-msgid "Not approved"
-msgstr "No Aprobado"
-
-#. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/models/account_move_line.py:0
-#, python-format
 msgid "Nothing to be paid on selected entries"
 msgstr "Nada por pagar de los asientos seleccionados"
 
@@ -402,7 +406,7 @@ msgid "Other Currency"
 msgstr "Otra Moneda"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.latam_check_view_account_payment_form_inherited
 msgid "Paid"
 msgstr "Pagado"
 
@@ -414,7 +418,6 @@ msgstr "Importe Pagado"
 #. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_bank_statement_line__pay_now_journal_id
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_move__pay_now_journal_id
-#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__pay_now_journal_id
 msgid "Pay now Journal"
 msgstr "Diario de pago directo"
 
@@ -432,11 +435,16 @@ msgstr "Importe Conciliado del Pago"
 #: model_terms:ir.ui.view,arch_db:account_payment_pro.res_config_settings_view_form
 msgid ""
 "Payment Pro incorpora funcionalidades que permiten llevar un flujo de cobros"
-"                          y pagos con retenciones, especificamente utilizado"
-" en Argentina. Al activarlo a                          ​su ​vez, se pierden "
+"                         y pagos con retenciones, especificamente utilizado "
+"en Argentina. Al activarlo a                         ​su ​vez, se pierden "
 "algunas funcionalidades nativas como descuento por pronto pago"
-"                          y sugerencias de diferencia de cambio"
+"                         y sugerencias de diferencia de cambio"
 msgstr ""
+"Payment Pro incorpora funcionalidades que permiten llevar un flujo de cobros"
+"                         y pagos con retenciones, especificamente utilizado "
+"en Argentina. Al activarlo a                         ​su ​vez, se pierden "
+"algunas funcionalidades nativas como descuento por pronto pago"
+"                         y sugerencias de diferencia de cambio"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__payment_total
@@ -444,35 +452,33 @@ msgid "Payment Total"
 msgstr "Total Pago"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.res_config_settings_view_form
-msgid "Payment double validation"
-msgstr "Doble Validación de Pagos"
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+msgid "Payment Total (SC)"
+msgstr "Importe total a imputar"
 
 #. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/wizards/account_payment_invoice_wizard.py:0
-#, python-format
 msgid "Payment id %s"
 msgstr "ID del Pago %s"
 
 #. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/models/account_payment.py:0
-#, python-format
 msgid "Payment is for partner %s but payment lines are of partner %s"
 msgstr ""
 "El pago es para el contacto %s pero las líneas de pago corresponden al "
 "contacto %s"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.latam_check_view_account_payment_form_inherited
 msgid ""
 "Payment will be automatically matched with the oldest lines of this list (by"
 " maturity date). You can remove any line you dont want to be matched."
 msgstr ""
-"El pago se comparará automáticamente con las líneas más antiguas de esta "
-"lista (por fecha de vencimiento). Puede eliminar cualquier línea que no "
-"desee que coincida."
+"El pago se emparejará automáticamente con las líneas más antiguas de esta "
+"lista (por fecha de vencimiento). Puedes eliminar cualquier línea que no "
+"desees que se empareje."
 
 #. module: account_payment_pro
 #: model:ir.model,name:account_payment_pro.model_account_payment
@@ -507,19 +513,18 @@ msgstr "Fecha de Reembolso"
 #. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/models/account_move_line.py:0
-#, python-format
 msgid "Register Payment"
 msgstr "Registrar Pago"
 
 #. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.latam_check_view_account_payment_form_inherited
 msgid "Remove All"
 msgstr "Eliminar Todo"
 
 #. module: account_payment_pro
-#: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__requiere_double_validation
-msgid "Requiere Double Validation"
-msgstr "Requiere doble validación"
+#: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
+msgid "Secondary Currency"
+msgstr "Moneda de Imputación"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__selected_debt
@@ -527,28 +532,19 @@ msgid "Selected Debt"
 msgstr "Deuda Seleccionada"
 
 #. module: account_payment_pro
-#. odoo-python
-#: code:addons/account_payment_pro/models/account_move_line.py:0
-#, python-format
-msgid "Selected recrods must be of the same partner"
-msgstr "Los registros seleccionados deben ser del mismo contacto"
-
-#. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment_invoice_wizard__tax_ids
 msgid "Taxes"
 msgstr "Impuestos"
 
 #. module: account_payment_pro
+#: model:ir.model.fields,help:account_payment_pro.field_account_payment__journal_currency_id
+msgid "The currency used to enter statement"
+msgstr "La moneda utilizada para ingresar el estado"
+
+#. module: account_payment_pro
 #: model:ir.model.fields,help:account_payment_pro.field_account_payment_invoice_wizard__currency_id
 msgid "The payment's currency."
 msgstr "La moneda del pago"
-
-#. module: account_payment_pro
-#. odoo-python
-#: code:addons/account_payment_pro/models/account_move.py:0
-#, python-format
-msgid "The payments %s require approve before post."
-msgstr "Los Pagos %s requieren Aprobación antes de ser publicados"
 
 #. module: account_payment_pro
 #: model:ir.model.fields,help:account_payment_pro.field_account_payment__to_pay_move_line_ids
@@ -561,13 +557,6 @@ msgid "To Pay Amount"
 msgstr "Importe a Pagar"
 
 #. module: account_payment_pro
-#. odoo-python
-#: code:addons/account_payment_pro/models/account_payment.py:0
-#, python-format
-msgid "To Pay Amount and Payment Amount must be equal!"
-msgstr "Importe a Pagar e Importe deben ser iguales"
-
-#. module: account_payment_pro
 #: model:ir.model.fields,field_description:account_payment_pro.field_account_payment__to_pay_move_line_ids
 msgid "To Pay Lines"
 msgstr "Líneas a Pagar"
@@ -575,7 +564,6 @@ msgstr "Líneas a Pagar"
 #. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/models/account_payment.py:0
-#, python-format
 msgid "To Pay Lines must be of the same account!"
 msgstr "Líneas a Pagar deben contener la misma cuenta"
 
@@ -617,17 +605,6 @@ msgid "Use payment pro module"
 msgstr "Uso del modulo de Payment Pro"
 
 #. module: account_payment_pro
-#: model:ir.model.fields,help:account_payment_pro.field_res_company__double_validation
-#: model:ir.model.fields,help:account_payment_pro.field_res_config_settings__double_validation
-msgid "Use two steps validation on payments to suppliers"
-msgstr "Utilice la validación en dos pasos en pagos a proveedores"
-
-#. module: account_payment_pro
-#: model_terms:ir.ui.view,arch_db:account_payment_pro.res_config_settings_view_form
-msgid "Users must approve payment before post"
-msgstr "Los usuarios deben aprobar el pago antes de la publicación"
-
-#. module: account_payment_pro
 #: model_terms:ir.ui.view,arch_db:account_payment_pro.view_account_payment_form
 msgid "Write Off"
 msgstr "Ajuste"
@@ -661,7 +638,6 @@ msgstr "Tipo de Ajuste"
 #. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/wizards/account_payment_invoice_wizard.py:0
-#, python-format
 msgid "You can only set amount total if taxes are of type percentage"
 msgstr ""
 "Solo puede establecer el monto total si los impuestos son de tipo porcentaje"
@@ -669,23 +645,11 @@ msgstr ""
 #. module: account_payment_pro
 #. odoo-python
 #: code:addons/account_payment_pro/models/account_payment.py:0
-#, python-format
 msgid ""
 "You can't create payments for entries belonging to different companies."
 msgstr ""
 "No se pueden crear pagos para asientos que pertenezcan a diferentes "
 "compañías"
-
-#. module: account_payment_pro
-#. odoo-python
-#: code:addons/account_payment_pro/models/account_payment.py:0
-#, python-format
-msgid ""
-"Your are trying to modify a protected field on an approved payment. Set it "
-"back to edit if you want to make this modification."
-msgstr ""
-"Está intentando modificar un campo protegido en un pago Aprobado. Vuelva a "
-"configurarlo para editar si desea realizar esta modificación."
 
 #. module: account_payment_pro
 #: model:ir.model,name:account_payment_pro.model_account_payment_invoice_wizard
@@ -697,4 +661,4 @@ msgstr ""
 #. module: account_payment_pro
 #: model:ir.model,name:account_payment_pro.model_account_write_off_type
 msgid "account.write_off.type"
-msgstr ""
+msgstr "Tipo de Write Off"
