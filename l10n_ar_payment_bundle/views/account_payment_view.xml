@@ -22,22 +22,13 @@
    <record id="view_account_payment_from_bundle_form" model="ir.ui.view">
         <field name="name">account.payment.from payment.bundle.form</field>
         <field name="model">account.payment</field>
-        <field name="inherit_id" ref="account.view_account_payment_form"/>
-        <field name="priority">90</field>
+<!--        <field name="inherit_id" ref="account.view_account_payment_form"/>-->
+<!--        <field name="priority">90</field>-->
+       <field name="inherit_id" ref="l10n_ar_tax.view_account_payment_form"/>
+<!--       now I'm inheriting from l10n_ar_tax, the view that adds withholdings_amount-->
         <field name="mode">primary</field>
         <field name="arch" type="xml">
-            <!-- <form>
-                <footer>
-                    <button special="saveAndNew" data-hotkey="s" string="Save" class="btn-primary"/>
-                    <button special="cancel" data-hotkey="x" string="Cancel" class="btn-secondary"/>
-                </footer>
-            </form> -->
-            <!-- <field name="payment_type" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </field> -->
-            <!-- no anda <xpath expr="//field[@name='company_id'][1]" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </xpath> -->
+
             <field name="partner_id" position="attributes">
                 <attribute name="invisible">1</attribute>
                 <attribute name="force_save">1</attribute>
