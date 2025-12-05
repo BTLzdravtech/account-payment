@@ -8,6 +8,7 @@ class ReSequenceWizard(models.TransientModel):
     _inherit = "account.resequence.wizard"
 
     def resequence(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         if self.ordering == "keep":
             new_names = [v["new_by_name"] for v in json.loads(self[0]["new_values"]).values()]
         else:

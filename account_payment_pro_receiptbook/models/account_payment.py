@@ -17,6 +17,7 @@ class AccountPayment(models.Model):
     )
 
     def action_post(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         # si no tengo nombre y tengo talonario de recibo, numeramos con el talonario
         for rec in self.filtered(
             lambda x: x.receiptbook_id

@@ -2,7 +2,8 @@ from odoo import _, api
 from odoo.addons.account.models.account_move_line import AccountMoveLine
 from odoo.exceptions import UserError
 
-
+# TODO: Odoo BTL - must be resolved in a different way than with a monkey patch, the original functionality must remain
+#  for the other companies
 def monkey_patches():
     def _check_amls_exigibility_for_reconciliation(self, shadowed_aml_values=None):
         """Ensure the current journal items are eligible to be reconciled together.

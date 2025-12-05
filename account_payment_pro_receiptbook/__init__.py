@@ -9,10 +9,12 @@ from odoo.addons.account.wizard.account_resequence import ReSequenceWizard
 def _generate_receiptbooks(env):
     """Create receiptbooks on existing companies with chart installed"""
     with_chart_companies = env["res.company"].search([("chart_template", "!=", False)])
+    # TODO: Odoo BTL - needs to be locked on AR company
     for company in with_chart_companies:
         env["account.chart.template"]._create_receiptbooks(company)
 
-
+# TODO: Odoo BTL - must be resolved in a different way than with a monkey patch, the original functionality must remain
+#  for the other companies
 def monkey_patches():
     def default_get_patch(self, fields_list):
         values = super(ReSequenceWizard, self).default_get(fields_list)

@@ -41,6 +41,7 @@ class AccountPayment(models.Model):
 
     @api.depends("amount")
     def _compute_net_amount(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             product = rec.company_id.product_surcharge_id
             taxes = product.taxes_id.filtered(lambda t: t.company_id.id == rec.company_id.id)
@@ -67,6 +68,7 @@ class AccountPayment(models.Model):
 
     @api.onchange("net_amount")
     def _inverse_net_amount(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             product = rec.company_id.product_surcharge_id
             taxes = product.taxes_id.filtered(lambda t: t.company_id.id == rec.company_id.id)
@@ -83,17 +85,20 @@ class AccountPayment(models.Model):
 
     @api.model
     def default_get(self, default_fields):
+        # TODO: Odoo BTL - needs to be locked on AR company
         if self._context.get("open_invoice_payment", False):
             self = self.with_context(active_ids=None, active_model=None)
         return super().default_get(default_fields)
 
     @api.depends("net_amount")
     def _compute_financing_surcharge(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             rec.financing_surcharge = rec.amount - rec.net_amount
 
     def action_post(self):
         """If we have a financial surcharge in the payments we need to auto create a debit note with the surcharge"""
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self.filtered(lambda p: p.financing_surcharge > 0):
             product = rec.company_id.product_surcharge_id
             if not product:
