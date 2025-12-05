@@ -24,6 +24,7 @@ class AccountChartTemplate(models.AbstractModel):
         """
         This method can be inherited by different localizations
         """
+        # TODO: Odoo BTL - needs to be locked on AR company
         partner_type_name_map = {
             "customer": _("Customer Receipts"),
             "supplier": _("Supplier Payments"),

@@ -41,6 +41,7 @@ class AccountPayment(models.Model):
 
     @api.depends("amount")
     def _compute_net_amount(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             product = rec.company_id.product_surcharge_id
             taxes = product.taxes_id.filtered(lambda t: t.company_id.id == rec.company_id.id)
@@ -67,6 +68,7 @@ class AccountPayment(models.Model):
 
     @api.onchange("net_amount")
     def _inverse_net_amount(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             product = rec.company_id.product_surcharge_id
             taxes = product.taxes_id.filtered(lambda t: t.company_id.id == rec.company_id.id)
@@ -90,6 +92,7 @@ class AccountPayment(models.Model):
 
     @api.depends("net_amount")
     def _compute_financing_surcharge(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             rec.financing_surcharge = rec.amount - rec.net_amount
 
