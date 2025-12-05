@@ -22,6 +22,7 @@ class AccountMove(models.Model):
 
     @api.depends("line_ids.account_id.account_type", "line_ids.reconciled")
     def _compute_open_move_lines(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             rec.open_move_line_ids = rec.line_ids.filtered(
                 lambda r: not r.reconciled
@@ -30,6 +31,7 @@ class AccountMove(models.Model):
             )
 
     def pay_now(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self.filtered(
             lambda x: x.pay_now_journal_id and x.state == "posted" and x.payment_state in ("not_paid", "patial")
         ):
@@ -83,6 +85,7 @@ class AccountMove(models.Model):
         self.pay_now_journal_id = False
 
     def button_draft(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         self.filtered(lambda x: x.state == "posted" and x.pay_now_journal_id).write({"pay_now_journal_id": False})
         return super().button_draft()
 

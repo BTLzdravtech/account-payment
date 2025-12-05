@@ -126,6 +126,7 @@ class AccountPayment(models.Model):
 
     @api.depends("company_id", "outstanding_account_id")
     def _compute_use_payment_pro(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         payment_with_pro = self.filtered(lambda x: x.company_id.use_payment_pro and x.outstanding_account_id)
         payment_with_pro.use_payment_pro = True
         (self - payment_with_pro).use_payment_pro = False
@@ -141,6 +142,7 @@ class AccountPayment(models.Model):
     def _check_to_pay_lines_account(self):
         """TODO ver si esto tmb lo llevamos a la UI y lo mostramos como un warning.
         tmb podemos dar mas info al usuario en el error"""
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self.filtered(lambda x: x.partner_id and x.state != "draft"):
             accounts = rec.to_pay_move_line_ids.mapped("account_id")
             if len(accounts) > 1:
@@ -150,6 +152,7 @@ class AccountPayment(models.Model):
         # Seteamos posted_before en true para que nos permita pasar a borrador el pago y poder realizar cambio sobre el mismo
         # Nos salteamos la siguente validacion
         # https://github.com/odoo/odoo/blob/b6b90636938ae961c339807ea893cabdede9f549/addons/account/models/account_move.py#L2474
+        # TODO: Odoo BTL - must be modified to be compatible with a recordset, multiple records can be set to draft at once
         if self.company_id.use_payment_pro:
             self.move_id.posted_before = False
         super().action_draft()
@@ -204,12 +207,14 @@ class AccountPayment(models.Model):
         # Cambiamos el metodo para que traiga los journals de la compañia sobre la cual se esta imputando el pago.
         # Le agregamos el onchange de company para asegurarnos de que los available journals se computen siempre
         # que se produce un cambio de compañia
+        # TODO: Odoo BTL - should be probably locked for AR only
         if self.company_id:
             self.env.company = self.company_id
         super()._compute_available_journal_ids()
 
     @api.depends("currency_id", "destination_journal_currency_id")
     def _compute_other_currency(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             rec.other_currency = False
             if rec.company_currency_id and rec.currency_id and rec.company_currency_id != rec.currency_id:
@@ -239,6 +244,7 @@ class AccountPayment(models.Model):
 
     @api.depends("counterpart_currency_id", "company_id", "date")
     def _compute_counterpart_exchange_rate(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             if rec.counterpart_currency_id:
                 rate = self.env["res.currency"]._get_conversion_rate(
@@ -273,6 +279,7 @@ class AccountPayment(models.Model):
         * si no, si hay force_amount_company_currency, devuelve ese valor
         * sino, devuelve el amount convertido a la moneda de la cia
         """
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             if not rec.other_currency:
                 amount_company_currency = rec.amount
@@ -413,6 +420,7 @@ class AccountPayment(models.Model):
         Por ahora no lo estamos usando porque el actual código de odoo solo muestra facturas o algo así (por ej. si hay
         conciliacion de deuda de un asiento normal no lo muestra)
         """
+        # TODO: Odoo BTL - needs to be locked on AR company
         stored_payments = self.filtered("id")
         for rec in stored_payments:
             payment_lines = rec.move_id.line_ids.filtered(
@@ -440,6 +448,7 @@ class AccountPayment(models.Model):
         "amount_company_currency_signed_pro",
     )
     def _compute_matched_amounts(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             rec.matched_amount = 0.0
             rec.unmatched_amount = 0.0
@@ -479,6 +488,7 @@ class AccountPayment(models.Model):
         2. we use the new field amount_company_currency instead of amount_total_signed, because amount_total_signed is
         computed only after saving
         We use l10n_ar prefix because this is a pseudo backport of future l10n_ar_withholding module"""
+        # TODO: Odoo BTL - needs to be locked on AR company
         for payment in self:
             if (
                 payment.payment_type == "outbound"
@@ -554,6 +564,8 @@ class AccountPayment(models.Model):
 
         # Se recomputan las lienas solo si la deuda que esta seleccionada solo si
         # cambio el partner, compania o partner_type
+
+        # TODO: Odoo BTL - needs to be locked on AR company
         records = self.filtered(lambda x: x.state == "draft")
         internal_transfers = records.filtered(lambda x: x.is_internal_transfer)
 
@@ -610,6 +622,7 @@ class AccountPayment(models.Model):
 
     @api.constrains("partner_id", "to_pay_move_line_ids")
     def check_to_pay_lines(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             to_pay_partners = rec.to_pay_move_line_ids.mapped("partner_id")
             if len(to_pay_partners) > 1:
@@ -638,6 +651,7 @@ class AccountPayment(models.Model):
             #         invoices.matched_payment_ids += rec
 
     def action_post(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         res = super().action_post()
         self._reconcile_after_post()
         return res
@@ -647,6 +661,7 @@ class AccountPayment(models.Model):
 
     # --- ORM METHODS--- #
     def web_read(self, specification):
+        # TODO: Odoo BTL - needs to be locked on AR company
         fields_to_read = list(specification) or ["id"]
         if "matched_move_line_ids" in fields_to_read and "context" in specification["matched_move_line_ids"]:
             specification["matched_move_line_ids"]["context"].update(
