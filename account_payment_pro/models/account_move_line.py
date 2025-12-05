@@ -15,6 +15,7 @@ class AccountMoveLine(models.Model):
         """
         Reciviendo un matched_payment_id por contexto, decimos en ese payment, cuanto se pago para la lína en cuestión.
         """
+        # TODO: Odoo BTL - needs to be locked on AR company
         matched_payment_ids = self._context.get("matched_payment_ids")
 
         if not matched_payment_ids:

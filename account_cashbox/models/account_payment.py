@@ -25,9 +25,11 @@ class AccountPayment(models.Model):
     # dummy depends para que se compute(no estamos seguros porque solo con el depends_context no computa)
     @api.depends("partner_id")
     def _compute_requiere_account_cashbox_session(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         self.requiere_account_cashbox_session = self.env.user.requiere_account_cashbox_session
 
     def _compute_cashbox_session_id(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             session_ids = self.env["account.cashbox.session"].search(
                 [
@@ -51,6 +53,7 @@ class AccountPayment(models.Model):
                 raise ValidationError(_("The currency of the journal must be the of the payment."))
 
     def _create_paired_internal_transfer_payment(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         super(AccountPayment, self.with_context(paired_transfer=True))._create_paired_internal_transfer_payment()
 
     def action_post(self):
