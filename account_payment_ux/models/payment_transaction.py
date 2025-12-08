@@ -7,6 +7,7 @@ class PaymentTransaction(models.Model):
     def _post_process(self):
         super()._post_process()
 
+        # TODO: Odoo BTL - needs to be locked on AR company
         for tx in self.filtered(lambda t: t.state == "done" and t.payment_id and t.payment_id.state == "draft"):
             # Si el pago relacionado a la trasaccion esta en draft y coinciden los datos
             # lo publico y concilio
