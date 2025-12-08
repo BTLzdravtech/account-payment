@@ -353,16 +353,11 @@ class AccountPayment(models.Model):
             )
 
         if self._use_counterpart_currency():
-            if self.payment_type == "inbound":
-                # Receive money.
-                liquidity_amount_currency = self.counterpart_currency_amount
-            elif self.payment_type == "outbound":
-                # Send money.
-                liquidity_amount_currency = -self.counterpart_currency_amount
+            sign = 1 if res[1].get("amount_currency", 1) >= 0 else -1
             res[1].update(
                 {
                     "currency_id": self.counterpart_currency_id.id,
-                    "amount_currency": -liquidity_amount_currency,
+                    "amount_currency": sign * abs(self.counterpart_currency_amount),
                 }
             )
         return res
@@ -595,7 +590,8 @@ class AccountPayment(models.Model):
                 "asset_receivable" if self.partner_type == "customer" else "liability_payable",
             ),
         ]
-        if self.env.context.get("active_ids"):
+        # TODO revisar bien estos, no debería ser necesario, ver el blame porque se agrego lo del active_ids
+        if self.env.context.get("active_ids") and self.env.context.get("active_model") == "account.move.line":
             domain.append(("move_id.line_ids", "in", self.env.context.get("active_ids")))
         return domain
 
