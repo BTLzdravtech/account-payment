@@ -90,11 +90,15 @@ class AccountMove(models.Model):
         return super().button_draft()
 
     def _post(self, soft=False):
-        res = super()._post(soft=soft)
-        self.pay_now()
-        return res
+        if self.env.company.country_code == 'AR':
+            res = super()._post(soft=soft)
+            self.pay_now()
+            return res
+        else:
+            return super()._post(soft=soft)
 
     def _search_default_journal(self):
-        if self.env.context.get("default_company_id"):
-            self.env.company = self.env["res.company"].browse(self.env.context.get("default_company_id"))
+        if self.env.company.country_code == 'AR':
+            if self.env.context.get("default_company_id"):
+                self.env.company = self.env["res.company"].browse(self.env.context.get("default_company_id"))
         return super()._search_default_journal()

@@ -13,8 +13,11 @@ class AccountChartTemplate(models.AbstractModel):
     _inherit = "account.chart.template"
 
     def _load(self, template_code, company, install_demo, force_create=True):
-        self._create_receiptbooks(company)
-        return super()._load(template_code, company, install_demo, force_create)
+        if self.env.company.country_code == 'AR':
+            self._create_receiptbooks(company)
+            return super()._load(template_code, company, install_demo, force_create)
+        else:
+            return super()._load(template_code, company, install_demo, force_create)
 
     @api.model
     def _create_receiptbooks(self, company):
