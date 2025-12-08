@@ -7,6 +7,7 @@ class PaymentTransaction(models.Model):
     def _post_process(self):
         super()._post_process()
 
+        # TODO: Odoo BTL - needs to be locked on AR company
         for tx in self.filtered(lambda t: t.state == "done" and t.payment_id and t.payment_id.state == "draft"):
             # Si el pago relacionado a la trasaccion esta en draft y coinciden los datos
             # lo publico y concilio
@@ -26,6 +27,7 @@ class PaymentTransaction(models.Model):
         # 2) _finalize_post_processing siempre marca la transaccion como _post_process
         # aunque su estado no sea DONE...
         # https://github.com/odoo/odoo/blob/18.0/addons/payment/models/payment_transaction.py#L873
+        # TODO: Odoo BTL - needs to be locked on AR company
         ignoned_post_processed_tx = self.env["payment.transaction"]
         if vals.get("is_post_processed") and vals.get("state", "draft") in ["draft", "pending"]:
             altered_vals = vals.copy()

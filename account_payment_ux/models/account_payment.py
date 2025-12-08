@@ -7,6 +7,7 @@ class AccountPayment(models.Model):
     def action_post(self):
         """Odoo a partir de 16, cuando se valida un pago con token, si la transaccion no queda en done cancela el pago
         por ahora nosotros revertimos este cambio para el caso de tu cuota"""
+        # TODO: Odoo BTL - needs to be locked on AR company
         return super(AccountPayment, self.with_context(from_action_post=True)).action_post()
 
     def action_cancel(self):

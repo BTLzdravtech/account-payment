@@ -23,6 +23,7 @@ class AccountPayment(models.Model):
 
     @api.depends("link_payment_ids.move_id")
     def _compute_show_move_button(self):
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             rec.show_move_button = bool(rec.link_payment_ids.mapped("move_id"))
 
@@ -38,6 +39,7 @@ class AccountPayment(models.Model):
     @api.depends("link_payment_ids")
     def _compute_payment_total(self):
         super()._compute_payment_total()
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self:
             rec.payment_total += sum(rec.link_payment_ids.mapped("payment_total"))
 
@@ -69,6 +71,7 @@ class AccountPayment(models.Model):
     @api.depends("use_payment_pro", "main_payment_id")
     def _compute_available_journal_ids(self):
         super()._compute_available_journal_ids()
+        # TODO: Odoo BTL - needs to be locked on AR company
         for rec in self.filtered(lambda x: x.main_payment_id or not x.use_payment_pro and x.company_id):
             bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
             rec.available_journal_ids = rec.available_journal_ids.filtered(
@@ -117,6 +120,7 @@ class AccountPayment(models.Model):
     def _get_payment_bundles(self):
         main_payments = self.filtered("is_main_payment")
         bundles = super(AccountPayment, self - main_payments)._get_payment_bundles()
+        # TODO: Odoo BTL - does this work? What if rec.id is not in bundles? Does not '+' operator throw error for this case?
         for rec in main_payments:
             bundles[rec.id] += rec + rec.link_payment_ids
         return bundles
@@ -149,6 +153,7 @@ class AccountPayment(models.Model):
 
     def action_draft(self):
         res = super(AccountPayment, self + self.link_payment_ids).action_draft()
+        # TODO: Odoo BTL - does this work for multiple records in the recordset?
         if self.main_payment_id:
             return {
                 "type": "ir.actions.act_window",
@@ -312,6 +317,7 @@ class AccountPayment(models.Model):
             )
 
         for rec in self - self.filtered("main_payment_id"):
+            # TODO: Odoo BTL - doesn't this just call super on self (all records) multiple times without filter?
             return super()._compute_payment_difference()
 
     @api.depends("payment_type", "link_payment_ids.payment_type")
