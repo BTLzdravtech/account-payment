@@ -271,9 +271,11 @@ class AccountPayment(models.Model):
             )
         return super().button_open_journal_entry()
 
+    # TODO: Odoo BTL - please add parameters to the depends()
     @api.depends()
     def _compute_matched_amounts(self):
         super()._compute_matched_amounts()
+        # TODO: Odoo BTL - lock for AR
         if self.filtered(lambda x: x.payment_method_line_id.payment_method_id.code == "payment_bundle"):
             for rec in self.filtered("is_main_payment"):
                 linked_payments = rec.link_payment_ids
@@ -295,6 +297,7 @@ class AccountPayment(models.Model):
     @api.depends("main_payment_id.partner_id")
     def _compute_partner_id(self):
         super()._compute_partner_id()
+        # TODO: Odoo BTL - lock for AR
         for rec in self.filtered("main_payment_id"):
             rec.partner_id = rec.main_payment_id.partner_id
 
