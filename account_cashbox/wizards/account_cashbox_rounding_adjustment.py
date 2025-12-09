@@ -11,7 +11,6 @@ class AccountCashboxRoundingAdjustment(models.TransientModel):
         """
         Create journal entries to adjust the rounding differences in the cashbox session.
         """
-        # TODO: Odoo BTL - lock for AR
         # Create journal entries for each line with a rounding difference
         for line in self.cashbox_session_id.line_ids.filtered(lambda x: x.balance_difference != 0):
             currency = line.journal_id.currency_id or self.cashbox_session_id.company_id.currency_id
@@ -68,7 +67,6 @@ class AccountCashboxRoundingAdjustment(models.TransientModel):
         """
         Close the session without creating journal entries.
         """
-        # TODO: Odoo BTL - lock for AR
         self.cashbox_session_id.write({"state": "closed"})
         return {"type": "ir.actions.act_window_close"}
 

@@ -61,7 +61,7 @@ class AccountPayment(models.Model):
 
     @api.onchange("installment_id")
     def _onchange_instalment(self):
-        # TODO: Odoo BTL - lock for AR and fix the typo in the method name (there is double 'l' in installment)
+        # TODO: Odoo BTL - please fix the typo in the method name (there is double 'l' in installment)
         """no agregamos este onchange en el de _inverse_net_amount porque si no el amount se inicializa en cero.
         Eventualmente habria que mejorar esto. Se podria tal vez pasar el default por vista al net_amount tmb"""
         for rec in self:

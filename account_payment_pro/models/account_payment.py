@@ -297,7 +297,6 @@ class AccountPayment(models.Model):
         If we are paying a payment gorup with paylines, we use account
         of lines that are going to be paid
         """
-        # TODO: Odoo BTL - lock for AR
         for rec in self:
             to_pay_account = rec.to_pay_move_line_ids.mapped("account_id")
             if to_pay_account:
@@ -508,7 +507,6 @@ class AccountPayment(models.Model):
             rec.payment_difference = rec.to_pay_amount - rec.payment_total
 
     def action_post_and_new(self):
-        # TODO: Odoo BTL - lock for AR
         self.ensure_one()
         self.action_post()
         return self.to_pay_move_line_ids.with_context(
@@ -590,7 +588,6 @@ class AccountPayment(models.Model):
         return records
 
     def _get_to_pay_move_lines_domain(self):
-        # TODO: Odoo BTL - lock for AR
         self.ensure_one()
         domain = [
             ("partner_id", "=", self.partner_id.commercial_partner_id.id),
