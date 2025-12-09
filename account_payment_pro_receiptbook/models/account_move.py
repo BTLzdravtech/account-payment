@@ -44,6 +44,7 @@ class AccountMove(models.Model):
         receiptbook_recs.made_sequence_hole = False
         super(AccountMove, self - receiptbook_recs)._compute_made_sequence_hole()
 
+    # TODO: Odoo BTL - please add parameters to the depends()
     @api.depends()
     def _compute_name(self):
         super()._compute_name()
@@ -58,6 +59,7 @@ class AccountMove(models.Model):
         receiptbook_payments = self.filtered(lambda x: x.origin_payment_id.receiptbook_id)
         super(AccountMove, self - receiptbook_payments)._compute_l10n_latam_document_type()
 
+    # TODO: Odoo BTL - please add parameters to the depends()
     @api.depends()
     def _compute_made_sequence_gap(self):
         with_receiptbook = self.filtered(lambda move: move.receiptbook_id)

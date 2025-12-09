@@ -67,6 +67,7 @@ class AccountPayment(models.Model):
                 )
                 rec.receiptbook_id = receiptbook
 
+    # TODO: Odoo BTL - please add parameters to the depends()
     @api.depends()
     def _compute_name(self):
         super(

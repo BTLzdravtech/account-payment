@@ -56,6 +56,7 @@ class AccountPayment(models.Model):
                 sum(rec.link_payment_ids.mapped("counterpart_currency_amount"))
             )
 
+    # TODO: Odoo BTL - please add parameters to the depends()
     @api.depends()
     def _compute_counterpart_currency_amount(self):
         main_payment_ids = self.filtered("is_main_payment")
@@ -248,6 +249,7 @@ class AccountPayment(models.Model):
             return action
         return super().button_open_bills()
 
+    # TODO: Odoo BTL - please add parameters to the depends()
     @api.depends()
     def _compute_stat_buttons_from_reconciliation(self):
         for rec in self:
