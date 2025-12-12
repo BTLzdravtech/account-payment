@@ -126,9 +126,11 @@ class AccountPayment(models.Model):
 
     @api.depends("company_id", "outstanding_account_id")
     def _compute_use_payment_pro(self):
-        payment_with_pro = self.filtered(lambda x: x.company_id.use_payment_pro and x.outstanding_account_id)
-        payment_with_pro.use_payment_pro = True
-        (self - payment_with_pro).use_payment_pro = False
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            payment_with_pro = self.filtered(lambda x: x.company_id.use_payment_pro and x.outstanding_account_id)
+            payment_with_pro.use_payment_pro = True
+            (self - payment_with_pro).use_payment_pro = False
 
     @api.depends("company_id")
     def _compute_write_off_available(self):
@@ -150,8 +152,10 @@ class AccountPayment(models.Model):
         # Seteamos posted_before en true para que nos permita pasar a borrador el pago y poder realizar cambio sobre el mismo
         # Nos salteamos la siguente validacion
         # https://github.com/odoo/odoo/blob/b6b90636938ae961c339807ea893cabdede9f549/addons/account/models/account_move.py#L2474
-        if self.company_id.use_payment_pro:
-            self.move_id.posted_before = False
+        # DOONETODO: Odoo BTL - must be modified to be compatible with a recordset, multiple records can be set to draft at once
+        for rec in self:
+            if rec.company_id.use_payment_pro:
+                rec.move_id.posted_before = False
         super().action_draft()
 
     def write(self, vals):
@@ -204,8 +208,10 @@ class AccountPayment(models.Model):
         # Cambiamos el metodo para que traiga los journals de la compañia sobre la cual se esta imputando el pago.
         # Le agregamos el onchange de company para asegurarnos de que los available journals se computen siempre
         # que se produce un cambio de compañia
-        if self.company_id:
-            self.env.company = self.company_id
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            if self.company_id:
+                self.env.company = self.company_id
         super()._compute_available_journal_ids()
 
     @api.depends("currency_id", "destination_journal_currency_id")
