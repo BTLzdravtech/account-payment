@@ -26,7 +26,9 @@ class AccountPaymentRegister(models.TransientModel):
     # dummy depends para que se compute(no estamos seguros porque solo con el depends_context no computa)
     @api.depends("journal_id")
     def _compute_requiere_account_cashbox_session(self):
-        self.requiere_account_cashbox_session = self.env.user.requiere_account_cashbox_session
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            self.requiere_account_cashbox_session = self.env.user.requiere_account_cashbox_session
 
     def _compute_cashbox_session_id(self):
         for rec in self:
