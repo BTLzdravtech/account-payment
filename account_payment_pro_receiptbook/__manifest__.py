@@ -28,7 +28,7 @@
     "auto_install": False,
     "application": False,
     "post_init_hook": "_generate_receiptbooks",
-    "post_load": "monkey_patches",
-    "uninstall_hook": "uninstall_hook",
+    # "post_load": "monkey_patches",
+    # "uninstall_hook": "uninstall_hook",
     "demo": [],
 }

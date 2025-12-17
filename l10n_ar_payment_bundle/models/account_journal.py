@@ -32,6 +32,8 @@ class AccountJournal(models.Model):
 
     def write(self, vals):
         res = super().write(vals)
-        if "inbound_payment_method_line_ids" in vals or "outbound_payment_method_line_ids" in vals:
-            self.env.registry.clear_cache()
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            if "inbound_payment_method_line_ids" in vals or "outbound_payment_method_line_ids" in vals:
+                self.env.registry.clear_cache()
         return res
