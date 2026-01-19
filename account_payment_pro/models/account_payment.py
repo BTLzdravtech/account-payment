@@ -131,6 +131,8 @@ class AccountPayment(models.Model):
             payment_with_pro = self.filtered(lambda x: x.company_id.use_payment_pro and x.outstanding_account_id)
             payment_with_pro.use_payment_pro = True
             (self - payment_with_pro).use_payment_pro = False
+        else:
+            self.use_payment_pro = False
 
     @api.depends("company_id")
     def _compute_write_off_available(self):

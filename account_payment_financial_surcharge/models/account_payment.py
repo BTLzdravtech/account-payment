@@ -59,6 +59,9 @@ class AccountPayment(models.Model):
 
                 rec.financing_surcharge = total_included
                 rec.net_amount = rec.amount + total_included
+        else:
+            for rec in self:
+                rec.net_amount = False
 
     @api.onchange("installment_id")
     def _onchange_instalment(self):
@@ -98,6 +101,9 @@ class AccountPayment(models.Model):
         if self.env.company.country_code == 'AR':
             for rec in self:
                 rec.financing_surcharge = rec.amount - rec.net_amount
+        else:
+            for rec in self:
+                rec.financing_surcharge = False
 
     def action_post(self):
         if self.env.company.country_code == 'AR':

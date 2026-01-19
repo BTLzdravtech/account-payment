@@ -30,6 +30,9 @@ class AccountMove(models.Model):
                     and r.parent_state == "posted"
                     and r.account_id.account_type in self.env["account.payment"]._get_valid_payment_account_types()
                 )
+        else:
+            for rec in self:
+                rec.open_move_line_ids = self.env["account.move.line"]
 
     def pay_now(self):
         # DONETODO: Odoo BTL - needs to be locked on AR company
