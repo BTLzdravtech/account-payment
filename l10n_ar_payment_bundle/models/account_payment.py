@@ -16,7 +16,7 @@ class AccountPayment(models.Model):
     )
     partner_id = fields.Many2one(recursive=True)
 
-    show_move_button = fields.Boolean(compute="_compute_show_move_button", default=False)
+    show_move_button = fields.Boolean(compute="_compute_show_move_button")
     warnings = fields.Json(
         compute="_compute_warnings",
     )
@@ -27,6 +27,9 @@ class AccountPayment(models.Model):
         if self.env.company.country_code == 'AR':
             for rec in self:
                 rec.show_move_button = bool(rec.link_payment_ids.mapped("move_id"))
+        else:
+            for rec in self:
+                rec.show_move_button = False
 
     @api.depends("payment_method_line_id")
     def _compute_is_main_payment(self):
