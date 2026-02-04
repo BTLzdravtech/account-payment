@@ -21,7 +21,10 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
     # dummy depends para que se compute(no estamos seguros porque solo con el depends_context no computa)
     @api.depends("destination_journal_id")
     def _compute_requiere_account_cashbox_session(self):
-        self.requiere_account_cashbox_session = self.env.user.requiere_account_cashbox_session
+        if self.env.company.country_code == "AR":
+            self.requiere_account_cashbox_session = self.env.user.requiere_account_cashbox_session
+        else:
+            self.requiere_account_cashbox_session = False
 
     @api.depends("destination_journal_id")
     def _compute_cashbox_session_id(self):
