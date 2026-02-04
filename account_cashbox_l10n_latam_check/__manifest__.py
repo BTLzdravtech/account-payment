@@ -18,5 +18,6 @@
     ],
     "installable": True,
     "application": False,
-    "auto_install": True,
+    # DONETODO: Odoo BTL - auto_install must be False
+    "auto_install": False,
 }

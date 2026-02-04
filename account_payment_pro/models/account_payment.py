@@ -126,9 +126,13 @@ class AccountPayment(models.Model):
 
     @api.depends("company_id", "outstanding_account_id")
     def _compute_use_payment_pro(self):
-        payment_with_pro = self.filtered(lambda x: x.company_id.use_payment_pro and x.outstanding_account_id)
-        payment_with_pro.use_payment_pro = True
-        (self - payment_with_pro).use_payment_pro = False
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            payment_with_pro = self.filtered(lambda x: x.company_id.use_payment_pro and x.outstanding_account_id)
+            payment_with_pro.use_payment_pro = True
+            (self - payment_with_pro).use_payment_pro = False
+        else:
+            self.use_payment_pro = False
 
     @api.depends("company_id")
     def _compute_write_off_available(self):
@@ -141,17 +145,21 @@ class AccountPayment(models.Model):
     def _check_to_pay_lines_account(self):
         """TODO ver si esto tmb lo llevamos a la UI y lo mostramos como un warning.
         tmb podemos dar mas info al usuario en el error"""
-        for rec in self.filtered(lambda x: x.partner_id and x.state != "draft"):
-            accounts = rec.to_pay_move_line_ids.mapped("account_id")
-            if len(accounts) > 1:
-                raise ValidationError(_("To Pay Lines must be of the same account!"))
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            for rec in self.filtered(lambda x: x.partner_id and x.state != "draft"):
+                accounts = rec.to_pay_move_line_ids.mapped("account_id")
+                if len(accounts) > 1:
+                    raise ValidationError(_("To Pay Lines must be of the same account!"))
 
     def action_draft(self):
         # Seteamos posted_before en true para que nos permita pasar a borrador el pago y poder realizar cambio sobre el mismo
         # Nos salteamos la siguente validacion
         # https://github.com/odoo/odoo/blob/b6b90636938ae961c339807ea893cabdede9f549/addons/account/models/account_move.py#L2474
-        if self.company_id.use_payment_pro:
-            self.move_id.posted_before = False
+        # DOONETODO: Odoo BTL - must be modified to be compatible with a recordset, multiple records can be set to draft at once
+        for rec in self:
+            if rec.company_id.use_payment_pro:
+                rec.move_id.posted_before = False
         super().action_draft()
 
     def write(self, vals):
@@ -204,22 +212,26 @@ class AccountPayment(models.Model):
         # Cambiamos el metodo para que traiga los journals de la compañia sobre la cual se esta imputando el pago.
         # Le agregamos el onchange de company para asegurarnos de que los available journals se computen siempre
         # que se produce un cambio de compañia
-        if self.company_id:
-            self.env.company = self.company_id
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            if self.company_id:
+                self.env.company = self.company_id
         super()._compute_available_journal_ids()
 
     @api.depends("currency_id", "destination_journal_currency_id")
     def _compute_other_currency(self):
         for rec in self:
+            # DONETODO: Odoo BTL - needs to be locked on AR company
             rec.other_currency = False
-            if rec.company_currency_id and rec.currency_id and rec.company_currency_id != rec.currency_id:
-                rec.other_currency = True
-            elif (
-                rec.is_internal_transfer
-                and rec.destination_journal_currency_id
-                and rec.company_currency_id != rec.destination_journal_currency_id
-            ):
-                rec.other_currency = True
+            if self.env.company.country_code == 'AR':
+                if rec.company_currency_id and rec.currency_id and rec.company_currency_id != rec.currency_id:
+                    rec.other_currency = True
+                elif (
+                    rec.is_internal_transfer
+                    and rec.destination_journal_currency_id
+                    and rec.company_currency_id != rec.destination_journal_currency_id
+                ):
+                    rec.other_currency = True
 
     @api.depends("amount", "other_currency", "amount_company_currency")
     def _compute_exchange_rate(self):
@@ -240,16 +252,19 @@ class AccountPayment(models.Model):
     @api.depends("counterpart_currency_id", "company_id", "date")
     def _compute_counterpart_exchange_rate(self):
         for rec in self:
-            if rec.counterpart_currency_id:
-                rate = self.env["res.currency"]._get_conversion_rate(
-                    from_currency=rec.company_currency_id,
-                    to_currency=rec.counterpart_currency_id,
-                    company=rec.company_id,
-                    date=rec.date,
-                )
-                rec.counterpart_exchange_rate = 1 / rate if rate else False
-            else:
-                rec.counterpart_exchange_rate = False
+            # DONETODO: Odoo BTL - needs to be locked on AR company
+            rec.counterpart_exchange_rate = False
+            if self.env.company.country_code == 'AR':
+                if rec.counterpart_currency_id:
+                    rate = self.env["res.currency"]._get_conversion_rate(
+                        from_currency=rec.company_currency_id,
+                        to_currency=rec.counterpart_currency_id,
+                        company=rec.company_id,
+                        date=rec.date,
+                    )
+                    rec.counterpart_exchange_rate = 1 / rate if rate else False
+                else:
+                    rec.counterpart_exchange_rate = False
 
     # this onchange is necesary because odoo, sometimes, re-compute
     # and overwrites amount_company_currency. That happends due to an issue
@@ -274,15 +289,18 @@ class AccountPayment(models.Model):
         * sino, devuelve el amount convertido a la moneda de la cia
         """
         for rec in self:
-            if not rec.other_currency:
-                amount_company_currency = rec.amount
-            elif rec.force_amount_company_currency:
-                amount_company_currency = rec.force_amount_company_currency
-            else:
-                amount_company_currency = rec.currency_id._convert(
-                    rec.amount, rec.company_id.currency_id, rec.company_id, rec.date
-                )
-            rec.amount_company_currency = amount_company_currency
+            # DONETODO: Odoo BTL - needs to be locked on AR company
+            rec.amount_company_currency = 0
+            if self.env.company.country_code == 'AR':
+                if not rec.other_currency:
+                    amount_company_currency = rec.amount
+                elif rec.force_amount_company_currency:
+                    amount_company_currency = rec.force_amount_company_currency
+                else:
+                    amount_company_currency = rec.currency_id._convert(
+                        rec.amount, rec.company_id.currency_id, rec.company_id, rec.date
+                    )
+                rec.amount_company_currency = amount_company_currency
 
     @api.depends("to_pay_move_line_ids")
     def _compute_destination_account_id(self):

@@ -26,7 +26,8 @@ class AccountPaymentRegister(models.TransientModel):
     # dummy depends para que se compute(no estamos seguros porque solo con el depends_context no computa)
     @api.depends("journal_id")
     def _compute_requiere_account_cashbox_session(self):
-        if self.env.company.country_code == "AR":
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
             self.requiere_account_cashbox_session = self.env.user.requiere_account_cashbox_session
         else:
             self.requiere_account_cashbox_session = False
@@ -44,9 +45,10 @@ class AccountPaymentRegister(models.TransientModel):
     @api.depends("payment_type", "cashbox_session_id")
     def _compute_available_journal_ids(self):
         super()._compute_available_journal_ids()
-        for pay in self.filtered("cashbox_session_id"):
-            # hacemos dominio sobre los line_ids y no los diarios del pop config porque
-            # puede ser que sea una sesion vieja y que el setting pop config cambie
-            pay.available_journal_ids = pay.available_journal_ids._origin.filtered(
-                lambda x: x in pay.cashbox_session_id.line_ids.mapped("journal_id")
-            )
+        if self.env.company.country_code == 'AR':
+            for pay in self.filtered("cashbox_session_id"):
+                # hacemos dominio sobre los line_ids y no los diarios del pop config porque
+                # puede ser que sea una sesion vieja y que el setting pop config cambie
+                pay.available_journal_ids = pay.available_journal_ids._origin.filtered(
+                    lambda x: x in pay.cashbox_session_id.line_ids.mapped("journal_id")
+                )
