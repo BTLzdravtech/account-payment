@@ -346,3 +346,17 @@ class AccountPayment(models.Model):
                     }
 
             rec.warnings = warnings
+
+    def _get_view(self, view_id=None, view_type='form', **options):
+        arch, view = super()._get_view(view_id=view_id, view_type=view_type, **options)
+        # Hide Main Payments filter for non AR companies
+        if view_type == 'search' and self.env.company.country_code != 'AR':
+            hide_filters = (
+                "main_payments_filter",
+                "linked_payments_filter",
+                "internal_transfer_filter"
+            )
+            for hide_filter in hide_filters:
+                for node in arch.xpath("//filter[@name='%s']" % hide_filter):
+                    node.getparent().remove(node)
+        return arch, view
