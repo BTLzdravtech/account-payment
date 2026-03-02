@@ -24,3 +24,10 @@ def migrate(env, version):
     """)
 
     _logger.info("END add receiptbook_id to account_move")
+
+
+    _logger.info("START add receiptbook_id to account_payment")
+    openupgrade.add_columns(env, [
+        ("account.payment", "receiptbook_id", "many2one"),
+    ])
+    _logger.info("END add receiptbook_id to account_payment")
