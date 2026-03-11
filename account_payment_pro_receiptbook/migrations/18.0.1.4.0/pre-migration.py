@@ -14,15 +14,6 @@ def migrate(env, version):
         ("account.move", "receiptbook_id", "many2one"),
     ])
 
-    openupgrade.logged_query(cr, """
-        UPDATE account_move am
-           SET receiptbook_id = ap.receiptbook_id
-          FROM account_payment ap
-         WHERE am.id = ap.move_id
-           AND am.receiptbook_id IS NULL
-           AND ap.receiptbook_id IS NOT NULL
-    """)
-
     _logger.info("END add receiptbook_id to account_move")
 
 
@@ -31,3 +22,15 @@ def migrate(env, version):
         ("account.payment", "receiptbook_id", "many2one"),
     ])
     _logger.info("END add receiptbook_id to account_payment")
+
+
+    _logger.info("START set receiptbook_id to account_move")
+    openupgrade.logged_query(cr, """
+        UPDATE account_move am
+           SET receiptbook_id = ap.receiptbook_id
+          FROM account_payment ap
+         WHERE am.id = ap.move_id
+           AND am.receiptbook_id IS NULL
+           AND ap.receiptbook_id IS NOT NULL
+    """)
+    _logger.info("END set receiptbook_id to account_move")
