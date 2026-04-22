@@ -202,7 +202,7 @@
     <record id="view_account_payment_search_bundle" model="ir.ui.view">
         <field name="name">account.payment.search.bundle</field>
         <field name="model">account.payment</field>
-        <field name="inherit_id" ref="account.view_account_payment_search" />
+        <field name="inherit_id" ref="account_internal_transfer.view_account_payment_search" />
         <field name="arch" type="xml">
             <filter name="internal_transfer_filter" position="after">
                 <separator/>

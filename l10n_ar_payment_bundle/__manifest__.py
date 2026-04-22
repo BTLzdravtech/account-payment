@@ -2,7 +2,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 {
     "name": "Argentinean Payment bundle",
-    "version": "18.0.1.4.0",
+    "version": "18.0.1.5.0",
     "category": "Payment",
     "website": "www.adhoc.com.ar",
     "author": "ADHOC SA",
@@ -15,6 +15,7 @@
     },
     "depends": [
         "account_payment_pro",
+        "account_internal_transfer",
         "l10n_ar_tax",
         "account_payment_pro_receiptbook",
     ],
