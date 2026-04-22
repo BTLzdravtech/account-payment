@@ -15,6 +15,7 @@
     },
     "depends": [
         "account_payment_pro",
+        "account_internal_transfer",
         "l10n_ar_tax",
         "account_payment_pro_receiptbook",
     ],
