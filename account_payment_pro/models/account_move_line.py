@@ -15,7 +15,10 @@ class AccountMoveLine(models.Model):
         """
         Reciviendo un matched_payment_id por contexto, decimos en ese payment, cuanto se pago para la lína en cuestión.
         """
-        matched_payment_ids = self._context.get("matched_payment_ids")
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        matched_payment_ids = False
+        if self.env.company.country_code == 'AR':
+            matched_payment_ids = self._context.get("matched_payment_ids")
 
         if not matched_payment_ids:
             self.payment_matched_amount = 0.0
@@ -34,36 +37,37 @@ class AccountMoveLine(models.Model):
             rec.payment_matched_amount = debit_move_amount - credit_move_amount
 
     def action_register_payment(self, ctx=None):
-        to_pay_partners = self.mapped("move_id.commercial_partner_id") or self.mapped("partner_id")
-        company_pay_pro = len(self.mapped("company_id").ids) == 1 and self.mapped("company_id").use_payment_pro
-        payment_pro = self._context.get("force_payment_pro")
-        # si force_payment_pro se pasa como False estamos forzando no usar payment pro, vamos a metodo original
-        # usamos payment pro si lo pasamos forzado (Caso pay and new donde todavia no tenemos company) o si estoy
-        # pagando deuda de una sola cia y tiene payment pro
-        # y si ademas estoy pagando solo deuda de un partner
-        if payment_pro is not False and ((payment_pro or company_pay_pro) and len(to_pay_partners) <= 1):
-            to_pay_move_lines = self.filtered(
-                lambda r: not r.reconciled and r.account_id.account_type in ["asset_receivable", "liability_payable"]
-            )
-            if not to_pay_move_lines:
-                partner_type = self._context.get("default_partner_type")
-                to_pay_partner_id = self._context.get("default_partner_id")
-                company_id = self._context.get("default_company_id")
-                if not partner_type or not to_pay_partner_id:
-                    raise UserError(_("Nothing to be paid on selected entries"))
-            else:
-                to_pay_partner_id = to_pay_partners.id
-                partner_type = (
-                    "customer" if to_pay_move_lines[0].account_id.account_type == "asset_receivable" else "supplier"
+        if self.env.company.country_code == 'AR':
+            to_pay_partners = self.mapped("move_id.commercial_partner_id") or self.mapped("partner_id")
+            company_pay_pro = len(self.mapped("company_id").ids) == 1 and self.mapped("company_id").use_payment_pro
+            payment_pro = self._context.get("force_payment_pro")
+            # si force_payment_pro se pasa como False estamos forzando no usar payment pro, vamos a metodo original
+            # usamos payment pro si lo pasamos forzado (Caso pay and new donde todavia no tenemos company) o si estoy
+            # pagando deuda de una sola cia y tiene payment pro
+            # y si ademas estoy pagando solo deuda de un partner
+            if payment_pro is not False and ((payment_pro or company_pay_pro) and len(to_pay_partners) <= 1):
+                to_pay_move_lines = self.filtered(
+                    lambda r: not r.reconciled and r.account_id.account_type in ["asset_receivable", "liability_payable"]
                 )
-                company_id = self.company_id.id
-            to_pay_amount = sum(line.amount_residual for line in to_pay_move_lines)
-            if to_pay_amount > 0:
-                payment_type = "inbound"
-            elif to_pay_amount < 0:
-                payment_type = "outbound"
-            else:
-                payment_type = "inbound" if partner_type == "customer" else "outbound"
+                if not to_pay_move_lines:
+                    partner_type = self._context.get("default_partner_type")
+                    to_pay_partner_id = self._context.get("default_partner_id")
+                    company_id = self._context.get("default_company_id")
+                    if not partner_type or not to_pay_partner_id:
+                        raise UserError(_("Nothing to be paid on selected entries"))
+                else:
+                    to_pay_partner_id = to_pay_partners.id
+                    partner_type = (
+                        "customer" if to_pay_move_lines[0].account_id.account_type == "asset_receivable" else "supplier"
+                    )
+                    company_id = self.company_id.id
+                to_pay_amount = sum(line.amount_residual for line in to_pay_move_lines)
+                if to_pay_amount > 0:
+                    payment_type = "inbound"
+                elif to_pay_amount < 0:
+                    payment_type = "outbound"
+                else:
+                    payment_type = "inbound" if partner_type == "customer" else "outbound"
             create_and_new = True if self._context.get("create_and_new") else False
             context = {
                 "active_model": "account.move.line",

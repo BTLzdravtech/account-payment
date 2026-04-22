@@ -23,8 +23,13 @@ class AccountPayment(models.Model):
 
     @api.depends("link_payment_ids.move_id")
     def _compute_show_move_button(self):
-        for rec in self:
-            rec.show_move_button = bool(rec.link_payment_ids.mapped("move_id"))
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            for rec in self:
+                rec.show_move_button = bool(rec.link_payment_ids.mapped("move_id"))
+        else:
+            for rec in self:
+                rec.show_move_button = False
 
     @api.depends("payment_method_line_id")
     def _compute_is_main_payment(self):
@@ -38,8 +43,10 @@ class AccountPayment(models.Model):
     @api.depends("link_payment_ids")
     def _compute_payment_total(self):
         super()._compute_payment_total()
-        for rec in self:
-            rec.payment_total += sum(rec.link_payment_ids.mapped("payment_total"))
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            for rec in self:
+                rec.payment_total += sum(rec.link_payment_ids.mapped("payment_total"))
 
     @api.depends("counterpart_currency_amount", "link_payment_ids.counterpart_currency_amount")
     def _compute_bundle_counterpart_currency_amount(self):
@@ -69,11 +76,13 @@ class AccountPayment(models.Model):
     @api.depends("use_payment_pro", "main_payment_id")
     def _compute_available_journal_ids(self):
         super()._compute_available_journal_ids()
-        for rec in self.filtered(lambda x: x.main_payment_id or not x.use_payment_pro and x.company_id):
-            bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
-            rec.available_journal_ids = rec.available_journal_ids.filtered(
-                lambda x: x._origin.id != bundle_journal_id and not x._origin.currency_id
-            )
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            for rec in self.filtered(lambda x: x.main_payment_id or not x.use_payment_pro and x.company_id):
+                bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
+                rec.available_journal_ids = rec.available_journal_ids.filtered(
+                    lambda x: x._origin.id != bundle_journal_id and not x._origin.currency_id
+                )
 
     @api.depends("main_payment_id.to_pay_move_line_ids")
     def _compute_to_pay_move_lines(self):
@@ -117,8 +126,10 @@ class AccountPayment(models.Model):
     def _get_payment_bundles(self):
         main_payments = self.filtered("is_main_payment")
         bundles = super(AccountPayment, self - main_payments)._get_payment_bundles()
-        for rec in main_payments:
-            bundles[rec.id] += rec + rec.link_payment_ids
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            for rec in main_payments:
+                bundles[rec.id] += rec + rec.link_payment_ids
         return bundles
 
     def _select_bundle(self, bundles):
@@ -269,14 +280,16 @@ class AccountPayment(models.Model):
     @api.depends()
     def _compute_matched_amounts(self):
         super()._compute_matched_amounts()
-        if self.filtered(lambda x: x.payment_method_line_id.payment_method_id.code == "payment_bundle"):
-            for rec in self.filtered("is_main_payment"):
-                linked_payments = rec.link_payment_ids
-                rec.matched_amount += sum(linked_payments.mapped("matched_amount"))
-                rec.unmatched_amount = abs(rec.payment_total) - rec.matched_amount
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            if self.filtered(lambda x: x.payment_method_line_id.payment_method_id.code == "payment_bundle"):
+                for rec in self.filtered("is_main_payment"):
+                    linked_payments = rec.link_payment_ids
+                    rec.matched_amount += sum(linked_payments.mapped("matched_amount"))
+                    rec.unmatched_amount = abs(rec.payment_total) - rec.matched_amount
 
-            for rec in self - self.filtered("is_main_payment"):
-                rec.unmatched_amount = 0.0
+                for rec in self - self.filtered("is_main_payment"):
+                    rec.unmatched_amount = 0.0
 
     @api.depends("move_id.line_ids")
     def _compute_matched_move_line_ids(self):
@@ -290,8 +303,10 @@ class AccountPayment(models.Model):
     @api.depends("main_payment_id.partner_id")
     def _compute_partner_id(self):
         super()._compute_partner_id()
-        for rec in self.filtered("main_payment_id"):
-            rec.partner_id = rec.main_payment_id.partner_id
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            for rec in self.filtered("main_payment_id"):
+                rec.partner_id = rec.main_payment_id.partner_id
 
     def _compute_payment_difference(self):
         for rec in self.filtered("main_payment_id"):
@@ -311,8 +326,10 @@ class AccountPayment(models.Model):
                 - rec.main_payment_id.write_off_amount
             )
 
-        for rec in self - self.filtered("main_payment_id"):
-            return super()._compute_payment_difference()
+        # for rec in self - self.filtered("main_payment_id"):
+        #     return super()._compute_payment_difference()
+        # DONETODO: Odoo BTL - doesn't this just call super on self (all records) multiple times without filter?
+        return super()._compute_payment_difference()
 
     @api.depends("payment_type", "link_payment_ids.payment_type")
     def _compute_warnings(self):
@@ -329,3 +346,17 @@ class AccountPayment(models.Model):
                     }
 
             rec.warnings = warnings
+
+    def _get_view(self, view_id=None, view_type='form', **options):
+        arch, view = super()._get_view(view_id=view_id, view_type=view_type, **options)
+        # Hide Main Payments filter for non AR companies
+        if view_type == 'search' and self.env.company.country_code != 'AR':
+            hide_filters = (
+                "main_payments_filter",
+                "linked_payments_filter",
+                "internal_transfer_filter"
+            )
+            for hide_filter in hide_filters:
+                for node in arch.xpath("//filter[@name='%s']" % hide_filter):
+                    node.getparent().remove(node)
+        return arch, view

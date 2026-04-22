@@ -21,7 +21,10 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
     # dummy depends para que se compute(no estamos seguros porque solo con el depends_context no computa)
     @api.depends("destination_journal_id")
     def _compute_requiere_account_cashbox_session(self):
-        self.requiere_account_cashbox_session = self.env.user.requiere_account_cashbox_session
+        if self.env.company.country_code == "AR":
+            self.requiere_account_cashbox_session = self.env.user.requiere_account_cashbox_session
+        else:
+            self.requiere_account_cashbox_session = False
 
     @api.depends("destination_journal_id")
     def _compute_cashbox_session_id(self):
@@ -35,15 +38,18 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
                 rec.cashbox_session_id = False
 
     def _create_payments(self):
-        self.ensure_one()
-        if self.env.user.requiere_account_cashbox_session and not self.cashbox_session_id:
-            raise UserError(_("Your user requires to use payment session on each tranfer"))
-        # Envio el contexto  paired_transfer en True para poder crear la
-        # transferencia son cashbox durante la creacion y setearla sobre
-        # la primera y no la paires
-        payments = super(L10nLatamPaymentMassTransfer, self.with_context(paired_transfer=True))._create_payments()
-        payments.cashbox_session_id = self.cashbox_session_id.id
-        return payments
+        if self.env.company.country_code == 'AR':
+            self.ensure_one()
+            if self.env.user.requiere_account_cashbox_session and not self.cashbox_session_id:
+                raise UserError(_("Your user requires to use payment session on each tranfer"))
+            # Envio el contexto  paired_transfer en True para poder crear la
+            # transferencia son cashbox durante la creacion y setearla sobre
+            # la primera y no la paires
+            payments = super(L10nLatamPaymentMassTransfer, self.with_context(paired_transfer=True))._create_payments()
+            payments.cashbox_session_id = self.cashbox_session_id.id
+            return payments
+        else:
+            return super()._create_payments()
 
     @api.onchange("destination_journal_id")
     def _compute_cashbox_session_ids_domain(self):

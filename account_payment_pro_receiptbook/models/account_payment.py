@@ -18,35 +18,39 @@ class AccountPayment(models.Model):
 
     def action_post(self):
         # si no tengo nombre y tengo talonario de recibo, numeramos con el talonario
-        for rec in self.filtered(
-            lambda x: x.receiptbook_id
-            and (not x.name or x.name == "/" or (x.move_id and not x.move_id._get_last_sequence()))
-        ):
-            if not rec.receiptbook_id.active:
-                raise ValidationError(
-                    _('Error! The receiptbook "%s" is archived. Please use a differente receipbook.')
-                    % rec.receiptbook_id.name
-                )
-            if not rec.receiptbook_id.sequence_id:
-                raise ValidationError(
-                    _("Error!. Please define sequence on the receiptbook related documents to this payment.")
-                )
+        # DONETODO: Odoo BTL - needs to be locked on AR company
+        if self.env.company.country_code == 'AR':
+            for rec in self.filtered(
+                lambda x: x.receiptbook_id
+                and (not x.name or x.name == "/" or (x.move_id and not x.move_id._get_last_sequence()))
+            ):
+                if not rec.receiptbook_id.active:
+                    raise ValidationError(
+                        _('Error! The receiptbook "%s" is archived. Please use a differente receipbook.')
+                        % rec.receiptbook_id.name
+                    )
+                if not rec.receiptbook_id.sequence_id:
+                    raise ValidationError(
+                        _("Error!. Please define sequence on the receiptbook related documents to this payment.")
+                    )
 
-            if not rec.name or rec.name == "/":
-                name = rec.receiptbook_id.with_context(ir_sequence_date=rec.date).sequence_id.next_by_id()
-                rec.name = "%s %s" % (rec.receiptbook_id.document_type_id.doc_code_prefix, name)
+                if not rec.name or rec.name == "/":
+                    name = rec.receiptbook_id.with_context(ir_sequence_date=rec.date).sequence_id.next_by_id()
+                    rec.name = "%s %s" % (rec.receiptbook_id.document_type_id.doc_code_prefix, name)
 
-        res = super().action_post()
-        # Reincorporamos el seteo del l10n_latam_document_type_id para el caso de usar talonario de recibo
-        # Ya que debido al fix en
-        # https://github.com/ingadhoc/account-payment/commit/8a6ff0564d3526ec8ead24c90a8e53267d038f6a
-        # se esta evitando el recomputo para impedir que este vuelva a False.
-        for rec in self.filtered(lambda x: x.receiptbook_id):
-            rec.move_id.l10n_latam_document_type_id = rec.receiptbook_id.document_type_id.id
+            res = super().action_post()
+            # Reincorporamos el seteo del l10n_latam_document_type_id para el caso de usar talonario de recibo
+            # Ya que debido al fix en
+            # https://github.com/ingadhoc/account-payment/commit/8a6ff0564d3526ec8ead24c90a8e53267d038f6a
+            # se esta evitando el recomputo para impedir que este vuelva a False.
+            for rec in self.filtered(lambda x: x.receiptbook_id):
+                rec.move_id.l10n_latam_document_type_id = rec.receiptbook_id.document_type_id.id
 
-        for rec in self.filtered("receiptbook_id.mail_template_id"):
-            rec.message_post_with_source(rec.receiptbook_id.mail_template_id, subtype_xmlid="mail.mt_comment")
-        return res
+            for rec in self.filtered("receiptbook_id.mail_template_id"):
+                rec.message_post_with_source(rec.receiptbook_id.mail_template_id, subtype_xmlid="mail.mt_comment")
+            return res
+        else:
+            return super().action_post()
 
     @api.depends("company_id", "partner_type", "is_internal_transfer")
     def _compute_receiptbook(self):

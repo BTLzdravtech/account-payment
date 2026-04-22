@@ -19,25 +19,14 @@
             </field>
         </field>
     </record>
+
    <record id="view_account_payment_from_bundle_form" model="ir.ui.view">
         <field name="name">account.payment.from payment.bundle.form</field>
         <field name="model">account.payment</field>
-        <field name="inherit_id" ref="account.view_account_payment_form"/>
-        <field name="priority">90</field>
+       <field name="inherit_id" ref="l10n_ar_tax.view_account_payment_form"/>
         <field name="mode">primary</field>
         <field name="arch" type="xml">
-            <!-- <form>
-                <footer>
-                    <button special="saveAndNew" data-hotkey="s" string="Save" class="btn-primary"/>
-                    <button special="cancel" data-hotkey="x" string="Cancel" class="btn-secondary"/>
-                </footer>
-            </form> -->
-            <!-- <field name="payment_type" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </field> -->
-            <!-- no anda <xpath expr="//field[@name='company_id'][1]" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </xpath> -->
+
             <field name="partner_id" position="attributes">
                 <attribute name="invisible">1</attribute>
                 <attribute name="force_save">1</attribute>
@@ -97,18 +86,9 @@
                 <attribute name="required" separator=" and " add=" is_main_payment"/>
                 <attribute name="readonly" separator=" or " add=" not is_main_payment"/>
             </field>
-            <!-- <button name="%(account.account_send_payment_receipt_by_email_action)d" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </button> -->
-        </field>
-    </record>
-    <record id="view_account_payment_form" model="ir.ui.view">
-        <field name="name">account.payment.form.inherited</field>
-        <field name="model">account.payment</field>
-        <field name="priority" eval="30"/>
-        <field name="inherit_id" ref="account.view_account_payment_form" />
-        <field name="arch" type="xml">
-            <!-- TODO: Vamos a eliminar todo. por ahora lo escondo cuando esta instalado bundle-->
+
+
+<!--            inicio traido de otra extension ya no necesaria-->
             <button name="action_post_and_new" position="attributes">
                 <attribute name="invisible">1</attribute>
             </button>
@@ -176,8 +156,13 @@
                     <field name="warnings" class="o_field_html" widget="actionable_errors"/>
                 </div>
             </sheet>
+<!--            fin traido de otra extension ya no necesaria-->
+
+
+
         </field>
     </record>
+
 
     <record id="view_account_payment_custom_list" model="ir.ui.view">
         <field name="name">account.payment.custom.list</field>
