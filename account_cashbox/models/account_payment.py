@@ -69,6 +69,7 @@ class AccountPayment(models.Model):
                             rec.id,
                             rec.cashbox_session_id.name,
                         )
+                    )
 
                 if (
                     not self.env.context.get("paired_transfer")
@@ -80,6 +81,7 @@ class AccountPayment(models.Model):
                             """Your user is required to use a payment session for each payment,
                             but no default cashbox is assigned or no session is open for the user."""
                         )
+                    )
         super().action_post()
 
 
