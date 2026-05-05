@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 
@@ -11,6 +11,25 @@ class AccountPayment(models.Model):
         string="Operation Date",
         default=fields.Datetime.now(),
     )
+
+    @api.constrains("l10n_latam_move_check_ids_operation_date", "state")
+    def _check_last_operation_on_state_change(self):
+        """
+        Constraint to prevent changing the state of a check operation if it is not the last operation.
+        """
+        import_file = self.env.context.get("import_file")
+        if not import_file:
+            return
+        for rec in self:
+            # Only validate if the payment has checks associated and state is changing
+            checks = rec.l10n_latam_move_check_ids | rec.l10n_latam_new_check_ids
+            for check in checks:
+                last_operation = check._get_last_operation()
+                if last_operation and rec != last_operation:
+                    raise ValidationError(
+                        "You cannot change the state of this operation because it is not the last operation for check %s."
+                        % check.name
+                    )
 
     def action_post(self):
         # nosotros queremos bloquear tmb nros de cheques de terceros que sea unicos

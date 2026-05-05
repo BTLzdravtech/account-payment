@@ -45,7 +45,9 @@ class AccountMove(models.Model):
         super()._compute_name()
         for move in self.filtered(
             lambda x: x.origin_payment_id.receiptbook_id
-            and (x.state == "draft" or x.origin_payment_id.state == "draft")
+            and (
+                x.state == "draft" or x.origin_payment_id.state == "draft" or x.origin_payment_id.payment_transaction_id
+            )
         ):
             move.name = move.origin_payment_id.name
 
@@ -72,8 +74,16 @@ class AccountMove(models.Model):
                     [
                         ("receiptbook_id", "=", receiptbook.id),
                         ("sequence_prefix", "=", prefix),
-                        ("sequence_number", ">=", min(moves.mapped("sequence_number")) - 1),
-                        ("sequence_number", "<=", max(moves.mapped("sequence_number")) - 1),
+                        (
+                            "sequence_number",
+                            ">=",
+                            min(moves.mapped("sequence_number")) - 1,
+                        ),
+                        (
+                            "sequence_number",
+                            "<=",
+                            max(moves.mapped("sequence_number")) - 1,
+                        ),
                     ]
                 )
                 .mapped("sequence_number")
@@ -82,3 +92,10 @@ class AccountMove(models.Model):
                 move.made_sequence_gap = move.sequence_number > 1 and (move.sequence_number - 1) not in previous_numbers
 
         super(AccountMove, self - with_receiptbook)._compute_made_sequence_gap()
+
+    def _must_check_constrains_date_sequence(self):
+        # OVERRIDES sequence.mixin to skip date sequence check for receiptbook moves
+        self.ensure_one()
+        if self.receiptbook_id:
+            return False
+        return super()._must_check_constrains_date_sequence()

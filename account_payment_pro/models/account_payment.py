@@ -18,7 +18,13 @@ class AccountPayment(models.Model):
         currency_field="counterpart_currency_id",
         compute="_compute_counterpart_currency_amount",
     )
-    counterpart_currency_id = fields.Many2one("res.currency")
+    counterpart_currency_id = fields.Many2one(
+        "res.currency",
+        compute="_compute_counterpart_currency_id",
+        store=True,
+        readonly=False,
+        precompute=True,
+    )
     counterpart_exchange_rate = fields.Float(
         readonly=False,
         compute="_compute_counterpart_exchange_rate",
@@ -32,7 +38,8 @@ class AccountPayment(models.Model):
     )
     journal_currency_id = fields.Many2one(related="journal_id.currency_id", string="Journal Currency")
     destination_journal_currency_id = fields.Many2one(
-        related="destination_journal_id.currency_id", string="Destination Journal Currency"
+        related="destination_journal_id.currency_id",
+        string="Destination Journal Currency",
     )
     force_amount_company_currency = fields.Monetary(
         string="Forced Amount on Company Currency",
@@ -57,7 +64,9 @@ class AccountPayment(models.Model):
         compute="_compute_amount_company_currency_signed_pro",
     )
     payment_total = fields.Monetary(
-        compute="_compute_payment_total", tracking=True, currency_field="company_currency_id"
+        compute="_compute_payment_total",
+        tracking=True,
+        currency_field="company_currency_id",
     )
     available_journal_ids = fields.Many2many(comodel_name="account.journal", compute="_compute_available_journal_ids")
     # desde account_payment_group, modelo account.payment.group
@@ -123,6 +132,37 @@ class AccountPayment(models.Model):
     use_payment_pro = fields.Boolean(compute="_compute_use_payment_pro")
 
     open_move_line_ids = fields.One2many(related="move_id.open_move_line_ids")
+    # Campo técnico para round-trip del onchange: el cliente lo devuelve en cada llamada,
+    # evitando depender de _origin (que no se actualiza entre onchanges y no existe en registros nuevos).
+    previous_currency_id = fields.Many2one(
+        "res.currency",
+        store=True,
+        copy=False,
+    )
+    amount_exact = fields.Float(
+        string="Amount (Exact)",
+        digits=0,
+        copy=False,
+        help="Exact value of amount with full precision, used internally for conversions to avoid rounding errors.",
+    )
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        if "previous_currency_id" in fields_list and "previous_currency_id" not in res:
+            currency_id = res.get("currency_id")
+            if not currency_id:
+                journal_id = res.get("journal_id") or self._context.get("default_journal_id")
+                if journal_id:
+                    journal = self.env["account.journal"].browse(journal_id)
+                    currency_id = (journal.currency_id or journal.company_id.currency_id).id
+            if currency_id:
+                res["previous_currency_id"] = currency_id
+        return res
+
+    @api.depends("journal_id")
+    def _compute_counterpart_currency_id(self):
+        self.filtered(lambda x: x.journal_id.currency_id == x.counterpart_currency_id).counterpart_currency_id = False
 
     @api.depends("company_id", "outstanding_account_id")
     def _compute_use_payment_pro(self):
@@ -137,13 +177,13 @@ class AccountPayment(models.Model):
                 rec.env["account.write_off.type"].search([("company_ids", "=", rec.company_id.id)], limit=1)
             )
 
-    @api.constrains("to_pay_move_line_ids", "state")
+    @api.constrains("to_pay_move_line_ids")
     def _check_to_pay_lines_account(self):
         """TODO ver si esto tmb lo llevamos a la UI y lo mostramos como un warning.
         tmb podemos dar mas info al usuario en el error"""
         for rec in self.filtered(lambda x: x.partner_id and x.state != "draft"):
             accounts = rec.to_pay_move_line_ids.mapped("account_id")
-            if len(accounts) > 1:
+            if len(accounts) > 1 and not self.env.context.get("default_mode") == "check_balance":
                 raise ValidationError(_("To Pay Lines must be of the same account!"))
 
     def action_draft(self):
@@ -154,7 +194,16 @@ class AccountPayment(models.Model):
             self.move_id.posted_before = False
         super().action_draft()
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if "amount" in vals and "amount_exact" not in vals:
+                vals["amount_exact"] = vals["amount"]
+        return super().create(vals_list)
+
     def write(self, vals):
+        if "amount" in vals and "amount_exact" not in vals:
+            vals["amount_exact"] = vals["amount"]
         for rec in self:
             if rec.company_id.use_payment_pro or (
                 "company_id" in vals and rec.env["res.company"].browse(vals["company_id"]).use_payment_pro
@@ -205,21 +254,27 @@ class AccountPayment(models.Model):
         # Le agregamos el onchange de company para asegurarnos de que los available journals se computen siempre
         # que se produce un cambio de compañia
         if self.company_id:
-            self.env.company = self.company_id
-        super()._compute_available_journal_ids()
+            self = self.with_company(self.company_id.id)
+        super(AccountPayment, self)._compute_available_journal_ids()
 
-    @api.depends("currency_id", "destination_journal_currency_id")
+    @api.depends(
+        "currency_id",
+        "company_currency_id",
+        "is_internal_transfer",
+        "destination_journal_currency_id",
+    )
     def _compute_other_currency(self):
         for rec in self:
-            rec.other_currency = False
-            if rec.company_currency_id and rec.currency_id and rec.company_currency_id != rec.currency_id:
-                rec.other_currency = True
-            elif (
-                rec.is_internal_transfer
-                and rec.destination_journal_currency_id
-                and rec.company_currency_id != rec.destination_journal_currency_id
-            ):
-                rec.other_currency = True
+            company_currency = rec.company_currency_id
+            rec.other_currency = bool(
+                (company_currency and rec.currency_id and company_currency != rec.currency_id)
+                or (
+                    rec.is_internal_transfer
+                    and company_currency
+                    and rec.destination_journal_currency_id
+                    and company_currency != rec.destination_journal_currency_id
+                )
+            )
 
     @api.depends("amount", "other_currency", "amount_company_currency")
     def _compute_exchange_rate(self):
@@ -266,7 +321,55 @@ class AccountPayment(models.Model):
                 force_amount_company_currency = False
             rec.force_amount_company_currency = force_amount_company_currency
 
-    @api.depends("amount", "other_currency", "force_amount_company_currency")
+    @api.onchange("company_id")
+    def _onchange_company_id(self):
+        if self._origin.company_id and self.company_id != self._origin.company_id and self.state == "draft":
+            self.remove_all()
+
+    @api.onchange("amount")
+    def _onchange_amount_update_exact(self):
+        for rec in self:
+            if not rec.currency_id.is_zero(rec.amount - rec.amount_exact):
+                rec.amount_exact = rec.amount
+
+    @api.onchange("currency_id")
+    def _onchange_currency_recompute_amount(self):
+        """Al cambiar la moneda del diario, reconvertir amount a la nueva moneda A."""
+        for rec in self:
+            new_currency = rec.currency_id
+            # previous_currency_id se round-tripea desde el cliente en cada onchange,
+            # por eso refleja la moneda real anterior (funciona en registros nuevos y
+            # en cambios consecutivos A→B→C sin guardar, donde _origin no sirve).
+            old_currency = rec.previous_currency_id or rec._origin.currency_id
+            if not old_currency:
+                old_currency = rec.company_currency_id
+            # Actualizar para el próximo onchange antes de cualquier continue
+            rec.previous_currency_id = new_currency
+            if rec.state != "draft" or not rec.amount:
+                continue
+
+            old_amount = rec.amount_exact or rec.amount
+            if not old_amount:
+                old_amount = rec.env.context.get("default_amount", 0.0)
+            amount = abs(
+                old_currency._convert(
+                    old_amount,
+                    new_currency,
+                    rec.company_id,
+                    rec.date or fields.Date.context_today(rec),
+                    False,
+                )
+            )
+            if (
+                rec.env.context.get("default_amount")
+                and rec.currency_id == rec.company_currency_id
+                and rec.amount_exact == rec._origin.amount_exact
+                and not rec.currency_id.is_zero(amount - rec.env.context.get("default_amount"))
+            ):
+                amount = rec.env.context.get("default_amount")
+            rec.update({"amount_exact": amount, "amount": amount})
+
+    @api.depends("amount", "amount_exact", "other_currency", "force_amount_company_currency")
     def _compute_amount_company_currency(self):
         """
         * Si las monedas son iguales devuelve 1
@@ -274,13 +377,14 @@ class AccountPayment(models.Model):
         * sino, devuelve el amount convertido a la moneda de la cia
         """
         for rec in self:
+            amount = rec.amount_exact or rec.amount
             if not rec.other_currency:
-                amount_company_currency = rec.amount
+                amount_company_currency = amount
             elif rec.force_amount_company_currency:
                 amount_company_currency = rec.force_amount_company_currency
             else:
                 amount_company_currency = rec.currency_id._convert(
-                    rec.amount, rec.company_id.currency_id, rec.company_id, rec.date
+                    amount, rec.company_id.currency_id, rec.company_id, rec.date
                 )
             rec.amount_company_currency = amount_company_currency
 
@@ -302,59 +406,63 @@ class AccountPayment(models.Model):
             else:
                 super(AccountPayment, rec)._compute_destination_account_id()
 
-    def _prepare_move_line_default_vals(self, write_off_line_vals=None, force_balance=None):
-        # TODO: elimino los write_off_line_vals  porque los regenero tanto aca
+    def _prepare_move_lines_per_type(self, write_off_line_vals=None, force_balance=None):
+        # TODO: elimino los write_off_line_vals porque los regenero tanto aca
         # como en retenciones. esto puede generar problemas
-        if not self.company_id.use_payment_pro:
-            return super()._prepare_move_line_default_vals(
-                write_off_line_vals=write_off_line_vals, force_balance=force_balance
-            )
-        write_off_line_vals = []
-        if self.write_off_amount:
-            if self.payment_type == "inbound":
-                # Receive money.
-                write_off_amount_currency = self.write_off_amount
-            else:
-                # Send money.
-                write_off_amount_currency = -self.write_off_amount
+        if self.company_id.use_payment_pro:
+            write_off_line_vals = []
+            if self.write_off_amount:
+                sign = 1 if self.payment_type == "inbound" else -1
+                # write_off_amount está definido en company_currency_id, por lo que el balance es directo
+                balance = sign * self.write_off_amount
+                if self.currency_id != self.company_id.currency_id:
+                    # amount_currency se deriva del balance usando la conversión inversa
+                    amount_currency = self.company_id.currency_id._convert(
+                        balance, self.currency_id, self.company_id, self.date
+                    )
+                else:
+                    amount_currency = balance
+                write_off_line_vals.append(
+                    {
+                        "name": self.write_off_type_id.label or self.write_off_type_id.name,
+                        "account_id": self.write_off_type_id.account_id.id,
+                        "partner_id": self.partner_id.id,
+                        "currency_id": self.currency_id.id,
+                        "amount_currency": amount_currency,
+                        "balance": balance,
+                    }
+                )
+        else:
+            # Si hay force_amount_company_currency, usarlo como force_balance
+            if self.force_amount_company_currency and force_balance is None:
+                force_balance = self.force_amount_company_currency
 
-            write_off_line_vals.append(
-                {
-                    "name": self.write_off_type_id.label or self.write_off_type_id.name,
-                    "account_id": self.write_off_type_id.account_id.id,
-                    "partner_id": self.partner_id.id,
-                    "currency_id": self.currency_id.id,
-                    "amount_currency": write_off_amount_currency,
-                    "balance": self.currency_id._convert(
-                        write_off_amount_currency, self.company_id.currency_id, self.company_id, self.date
-                    ),
-                }
-            )
-        res = super()._prepare_move_line_default_vals(
-            write_off_line_vals=write_off_line_vals, force_balance=force_balance
-        )
-        if self.force_amount_company_currency:
-            difference = self.force_amount_company_currency - res[0]["credit"] - res[0]["debit"]
-            if res[0]["credit"]:
-                liquidity_field = "credit"
-                counterpart_field = "debit"
-            else:
-                liquidity_field = "debit"
-                counterpart_field = "credit"
-            res[0].update(
-                {
-                    liquidity_field: self.force_amount_company_currency,
-                }
-            )
-            res[1].update(
-                {
-                    counterpart_field: res[1][counterpart_field] + difference,
-                }
-            )
+        res = super()._prepare_move_lines_per_type(write_off_line_vals=write_off_line_vals, force_balance=force_balance)
 
-        if self._use_counterpart_currency():
-            sign = 1 if res[1].get("amount_currency", 1) >= 0 else -1
-            res[1].update(
+        if self.company_id.use_payment_pro and write_off_line_vals and not res.get("write_off_lines"):
+            res["write_off_lines"] = write_off_line_vals
+            w_balance = sum(line["balance"] for line in write_off_line_vals)
+            w_amount_currency = sum(line["amount_currency"] for line in write_off_line_vals)
+            if res.get("counterpart_lines"):
+                res["counterpart_lines"][0]["balance"] -= w_balance
+                res["counterpart_lines"][0]["amount_currency"] -= w_amount_currency
+
+        if not self.company_id.use_payment_pro and not self.is_internal_transfer:
+            return res
+
+        liquidity_lines = res.get("liquidity_lines", [])
+        counterpart_lines = res.get("counterpart_lines", [])
+
+        if self.force_amount_company_currency and liquidity_lines and counterpart_lines:
+            sign = 1 if liquidity_lines[0]["balance"] > 0 else -1
+            new_balance = sign * self.force_amount_company_currency
+            difference = new_balance - liquidity_lines[0]["balance"]
+            liquidity_lines[0]["balance"] = new_balance
+            counterpart_lines[0]["balance"] -= difference
+
+        if self._use_counterpart_currency() and counterpart_lines:
+            sign = 1 if counterpart_lines[0].get("amount_currency", 1) >= 0 else -1
+            counterpart_lines[0].update(
                 {
                     "currency_id": self.counterpart_currency_id.id,
                     "amount_currency": sign * abs(self.counterpart_currency_amount),
@@ -378,7 +486,11 @@ class AccountPayment(models.Model):
         # esto esta ligado de alguna manera a un llamado que se hace dos veces por "culpa" del método
         # "_inverse_amount_company_currency". Si bien no es elegante para todas las pruebas que hicimos funcionó bien.
         if self.mapped("move_id"):
-            res = res + ("force_amount_company_currency", "counterpart_exchange_rate", "counterpart_currency_id")
+            res = res + (
+                "force_amount_company_currency",
+                "counterpart_exchange_rate",
+                "counterpart_currency_id",
+            )
         return res + (
             "write_off_amount",
             "write_off_type_id",
@@ -448,7 +560,7 @@ class AccountPayment(models.Model):
             # damos vuelta signo porque el payments_amount tmb lo da vuelta,
             # en realidad porque siempre es positivo y se define en funcion
             # a si es pago entrante o saliente
-            sign = rec.partner_type == "supplier" and -1.0 or 1.0
+            sign = rec.payment_type == "outbound" and -1.0 or 1.0
             rec.matched_amount = sign * sum(
                 rec.matched_move_line_ids.with_context(matched_payment_ids=rec.ids).mapped("payment_matched_amount")
             )
@@ -551,13 +663,12 @@ class AccountPayment(models.Model):
         # # if payment group is being created from a payment we dont want to compute to_pay_move_lines
         # if self._context.get('created_automatically'):
         #     return
-
         # Se recomputan las lienas solo si la deuda que esta seleccionada solo si
         # cambio el partner, compania o partner_type
         records = self.filtered(lambda x: x.state == "draft")
         internal_transfers = records.filtered(lambda x: x.is_internal_transfer)
 
-        with_payment_pro = self._get_filter_payments(records, ["direct_debit_mandate_id"])
+        with_payment_pro = self._get_filter_payments(records, ["direct_debit_mandate_id", "pos_session_id"])
 
         if internal_transfers or not self._context.get("pay_now"):
             ((internal_transfers or self) - with_payment_pro).to_pay_move_line_ids = [Command.clear()]
@@ -577,6 +688,11 @@ class AccountPayment(models.Model):
 
     def _get_to_pay_move_lines_domain(self):
         self.ensure_one()
+        # Cuando se llama desde action_add_all (manual), permitir líneas sin partner
+        # Cuando se llama desde _compute_to_pay_move_lines (automático), solo con partner
+        if not self.partner_id and not self.env.context.get("include_lines_without_partner"):
+            return [(0, "=", 1)]
+
         domain = [
             ("partner_id", "=", self.partner_id.commercial_partner_id.id),
             ("company_id", "=", self.company_id.id),
@@ -603,7 +719,7 @@ class AccountPayment(models.Model):
             ]
 
     def action_add_all(self):
-        self.with_context(active_ids=False)._add_all()
+        self.with_context(active_ids=False, include_lines_without_partner=True)._add_all()
 
     def remove_all(self):
         self.to_pay_move_line_ids = False
@@ -627,7 +743,9 @@ class AccountPayment(models.Model):
             counterpart_aml = rec.mapped("move_id.line_ids").filtered(
                 lambda r: not r.reconciled and r.account_id.account_type in self._get_valid_payment_account_types()
             )
-            debt_aml = rec.to_pay_move_line_ids.filtered(lambda r: not r.reconciled)
+            debt_aml = rec.to_pay_move_line_ids.filtered(
+                lambda r: not r.reconciled and r.account_id.id == counterpart_aml.account_id.id
+            )
             if counterpart_aml and debt_aml:
                 (counterpart_aml + (debt_aml)).reconcile()
             # Lo sacamos ya que no es correcto de odoo cuando se deslinkea el pago
@@ -639,6 +757,7 @@ class AccountPayment(models.Model):
 
     def action_post(self):
         res = super().action_post()
+        self._check_to_pay_lines_account()
         self._reconcile_after_post()
         return res
 
@@ -646,6 +765,41 @@ class AccountPayment(models.Model):
         return self.ids
 
     # --- ORM METHODS--- #
+    def export_data(self, fields_to_export):
+        """Fix context loss during export for matched/unmatched amounts.
+        Pre-calculate values with correct context, then override in export result.
+        """
+        if any(field in fields_to_export for field in ["matched_amount", "unmatched_amount"]):
+            self.invalidate_recordset(["matched_amount", "unmatched_amount"])
+
+            # Pre-calculate with individual context
+            values_by_payment = {}
+            for payment in self:
+                payment.invalidate_recordset(["matched_amount", "unmatched_amount"])
+                payment_with_context = payment.with_context(matched_payment_ids=payment.ids)
+                values_by_payment[payment.id] = {
+                    "matched_amount": payment_with_context.matched_amount,
+                    "unmatched_amount": payment_with_context.unmatched_amount,
+                }
+
+            result = super().export_data(fields_to_export)
+
+            # Override with correct values
+            matched_idx = fields_to_export.index("matched_amount") if "matched_amount" in fields_to_export else None
+            unmatched_idx = (
+                fields_to_export.index("unmatched_amount") if "unmatched_amount" in fields_to_export else None
+            )
+
+            for idx, payment in enumerate(self):
+                if matched_idx is not None:
+                    result["datas"][idx][matched_idx] = values_by_payment[payment.id]["matched_amount"]
+                if unmatched_idx is not None:
+                    result["datas"][idx][unmatched_idx] = values_by_payment[payment.id]["unmatched_amount"]
+
+            return result
+
+        return super().export_data(fields_to_export)
+
     def web_read(self, specification):
         fields_to_read = list(specification) or ["id"]
         if "matched_move_line_ids" in fields_to_read and "context" in specification["matched_move_line_ids"]:
@@ -657,3 +811,9 @@ class AccountPayment(models.Model):
     @api.depends("journal_id")
     def _compute_available_partner_bank_ids(self):
         super()._compute_available_partner_bank_ids()
+
+    @api.constrains("journal_id", "move_id")
+    def _check_payment_move_journal_consistency(self):
+        for rec in self.filtered(lambda x: x.move_id and x.move_id.state not in ["draft", "cancel"]):
+            if rec.journal_id != rec.move_id.journal_id:
+                raise ValidationError(_("The payment journal must match the journal of its journal entry."))
