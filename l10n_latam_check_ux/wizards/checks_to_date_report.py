@@ -52,7 +52,8 @@ class AccountCheckToDateReportWizard(models.TransientModel):
                         SELECT
                             c.id as check_id,
                             ap_move.date as operation_date,
-                            apm.code as operation_code
+                            apm.code as operation_code,
+                            c.issue_state AS issue_state
                         FROM l10n_latam_check c
                         JOIN account_payment AS ap
                             ON c.payment_id = ap.id
@@ -65,23 +66,22 @@ class AccountCheckToDateReportWizard(models.TransientModel):
                         LEFT JOIN account_journal AS journal
                             ON ap_move.journal_id = journal.id
                         WHERE
-                        c.issue_state = 'handed'
-                        AND apm.code = 'own_checks'
+                        apm.code = 'own_checks'
                         AND ap_move.date <= %(to_date)s
+                        AND ap.state not in ('canceled', 'draft')
                         ORDER BY c.id, ap_move.date desc
                     ) t
                     LEFT JOIN
                     (
                         SELECT
                             c.id as check_id,
-                            MAX(aml.date) AS operation_date
+                            MAX(aml2.date) AS operation_date
                         FROM l10n_latam_check c
                         JOIN account_payment AS ap
                             ON ap.id = c.payment_id
-                        JOIN account_payment_method AS apm
-                            ON apm.id = ap.payment_method_id
-                        JOIN account_move_line as aml
-                            ON ap.move_id = aml.move_id
+                        JOIN account_move as am
+                            ON ap.move_id = am.id
+                        JOIN account_move_line aml on aml.move_id = am.id
                         JOIN account_account aa
                             ON aa.id = aml.account_id
                         LEFT JOIN account_partial_reconcile afr_partial
@@ -89,13 +89,19 @@ class AccountCheckToDateReportWizard(models.TransientModel):
                                 afr_partial.credit_move_id = aml.id
                                 OR afr_partial.debit_move_id = aml.id
                             )
-                        WHERE apm.code = 'own_checks'
-                        AND aa.reconcile = true
+                        JOIN account_move_line as aml2
+                            ON (
+                                aml2.id = afr_partial.credit_move_id
+                                OR aml2.id=afr_partial.debit_move_id
+                            )
+                        WHERE
+                        aa.reconcile = true and c.issue_state != 'handed'
                         GROUP BY c.id
                         HAVING BOOL_AND(afr_partial.id IS NOT NULL)
                     ) t2
                     ON t.check_id = t2.check_id
-                WHERE t2.operation_date >= %(to_date)s OR t2.operation_date IS NULL
+                WHERE t2.operation_date >= %(to_date)s
+                OR (t2.operation_date IS NULL AND t.issue_state != 'debited')
                 ;
             """,
             to_date=to_date,
@@ -114,22 +120,37 @@ class AccountCheckToDateReportWizard(models.TransientModel):
     def _get_checks_on_hand(self, journal_id, to_date):
         self.env.cr.execute("DROP TABLE IF EXISTS t;")
         # Buscamos la última operation (payment) de cada cheque
-        self.env.cr.execute("""
+        self.env.cr.execute(
+            """
             CREATE TEMPORARY TABLE t AS
-            SELECT
-                rel.check_id,
-                MAX(rel.payment_id) AS payment_id
-            FROM
-                l10n_latam_check_account_payment_rel rel
-            LEFT JOIN
-                account_payment AS ap ON ap.id = rel.payment_id
-            LEFT JOIN
-                account_payment_method AS apm ON apm.id = ap.payment_method_id
-            LEFT JOIN
-                account_move AS ap_move ON ap.move_id = ap_move.id
+            SELECT check_id, MAX(payment_id) as payment_id
+            FROM (
+                SELECT
+                    rel.check_id,
+                    rel.payment_id AS payment_id
+                FROM
+                    l10n_latam_check_account_payment_rel rel
+                LEFT JOIN
+                    account_payment AS ap ON ap.id = rel.payment_id
+                LEFT JOIN
+                    account_payment_method AS apm ON apm.id = ap.payment_method_id
+                LEFT JOIN
+                    account_move AS ap_move ON ap.move_id = ap_move.id
+                WHERE ap.date <= %s
+            UNION ALL
+                SELECT
+                    llc.id as check_id,
+                    llc.payment_id as payment_id
+                FROM l10n_latam_check llc
+                JOIN account_payment ap on ap.id = llc.payment_id
+                WHERE ap.date <= %s
+
+            ) AS query
             GROUP BY
-                rel.check_id;
-        """)
+                query.check_id;
+        """,
+            (to_date, to_date),
+        )
 
         self.env.cr.execute("DROP TABLE IF EXISTS t2;")
         # De la última operación de cada cheque filtramos los cheques cuya última operacioń no es manual (es decir, no
@@ -164,7 +185,7 @@ class AccountCheckToDateReportWizard(models.TransientModel):
             SELECT c.id AS check_id, ap_move.date AS operation_date, apm.code AS operation_code
             FROM t2
             LEFT JOIN l10n_latam_check c ON c.id = t2.check_id
-            LEFT JOIN account_payment AS ap ON ap.id = c.payment_id
+            LEFT JOIN account_payment AS ap ON ap.id = t2.payment_id
             LEFT JOIN account_payment_method AS apm ON apm.id = ap.payment_method_id
             LEFT JOIN account_move AS ap_move ON ap.move_id = ap_move.id
             LEFT JOIN account_journal AS journal ON ap_move.journal_id = journal.id

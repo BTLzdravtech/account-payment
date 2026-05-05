@@ -59,8 +59,8 @@ class AccountPayment(models.Model):
 
     def action_post(self):
         if self.env.company.country_code == 'AR':
-            for rec in self:
-                if not rec.cashbox_session_id and self.env.user.requiere_account_cashbox_session:
+            for rec in self.filtered(lambda x: x.state == "draft"):
+                if not rec.cashbox_session_id and rec.requiere_account_cashbox_session:
                     rec._compute_cashbox_session_id()
                 elif rec.cashbox_session_id and rec.cashbox_session_id.state != "opened":
                     raise UserError(
@@ -69,11 +69,10 @@ class AccountPayment(models.Model):
                             rec.id,
                             rec.cashbox_session_id.name,
                         )
-                    )
 
                 if (
                     not self.env.context.get("paired_transfer")
-                    and self.env.user.requiere_account_cashbox_session
+                    and rec.requiere_account_cashbox_session
                     and not rec.cashbox_session_id
                 ):
                     raise UserError(
@@ -81,7 +80,6 @@ class AccountPayment(models.Model):
                             """Your user is required to use a payment session for each payment,
                             but no default cashbox is assigned or no session is open for the user."""
                         )
-                    )
         super().action_post()
 
 

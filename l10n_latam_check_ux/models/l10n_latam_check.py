@@ -4,6 +4,11 @@ from odoo import _, api, fields, models
 class l10nLatamAccountPaymentCheck(models.Model):
     _inherit = "l10n_latam.check"
 
+    name = fields.Char(tracking=True)
+    issuer_vat = fields.Char(tracking=True)
+    payment_date = fields.Date(tracking=True)
+    bank_id = fields.Many2one(tracking=True)
+
     check_add_debit_button = fields.Boolean(related="original_journal_id.check_add_debit_button", readonly=True)
     first_operation = fields.Many2one(
         "account.payment",
@@ -22,6 +27,13 @@ class l10nLatamAccountPaymentCheck(models.Model):
         related="payment_id.state",
         readonly=True,
     )
+    user_can_write = fields.Boolean(
+        compute="_compute_user_can_write",
+    )
+
+    def _compute_user_can_write(self):
+        for rec in self:
+            rec.user_can_write = rec.env.user.has_group("account.group_account_user")
 
     @api.depends("operation_ids.state", "payment_id.state")
     def _compute_company_id(self):
@@ -65,3 +77,24 @@ class l10nLatamAccountPaymentCheck(models.Model):
             .filtered(lambda x: x.state not in ["draft", "canceled"] and x.l10n_latam_move_check_ids_operation_date)
             .sorted(key=lambda payment: (payment.l10n_latam_move_check_ids_operation_date))[-1:]
         )
+
+    @api.depends("payment_method_line_id.code", "payment_id.partner_id")
+    def _compute_bank_id(self):
+        payment_method_change = self._origin.payment_method_line_id != self.payment_method_line_id
+        partner_id_change = self._origin.payment_id.partner_id != self.payment_id.partner_id
+        if payment_method_change or partner_id_change:
+            super()._compute_bank_id()
+
+    @api.depends("payment_method_line_id.code", "payment_id.partner_id")
+    def _compute_issuer_vat(self):
+        payment_method_change = self._origin.payment_method_line_id != self.payment_method_line_id
+        partner_id_change = self._origin.payment_id.partner_id != self.payment_id.partner_id
+        if payment_method_change or partner_id_change:
+            super()._compute_issuer_vat()
+
+    def _compute_issue_state(self):
+        super()._compute_issue_state()
+        for rec in self:
+            account = rec.outstanding_line_id.account_id
+            if account and not account.reconcile:
+                rec.issue_state = "debited"
