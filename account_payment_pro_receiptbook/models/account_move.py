@@ -99,7 +99,8 @@ class AccountMove(models.Model):
 
     def _must_check_constrains_date_sequence(self):
         # OVERRIDES sequence.mixin to skip date sequence check for receiptbook moves
-        self.ensure_one()
-        if self.receiptbook_id:
-            return False
+        if self.env.company.country_code == 'AR':
+            self.ensure_one()
+            if self.receiptbook_id:
+                return False
         return super()._must_check_constrains_date_sequence()
