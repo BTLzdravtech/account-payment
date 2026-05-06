@@ -1,5 +1,6 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.fields import Command
 
 
 class AccountPayment(models.Model):
@@ -40,6 +41,11 @@ class AccountPayment(models.Model):
     def _onchange_is_main_payment(self):
         self.filtered("is_main_payment").amount = 0
 
+    @api.onchange("company_id")
+    def _onchange_company_id(self):
+        if self.link_payment_ids:
+            self.link_payment_ids = [Command.clear()]
+
     @api.depends("link_payment_ids")
     def _compute_payment_total(self):
         super()._compute_payment_total()
@@ -78,11 +84,21 @@ class AccountPayment(models.Model):
         super()._compute_available_journal_ids()
         # DONETODO: Odoo BTL - needs to be locked on AR company
         if self.env.company.country_code == 'AR':
-            for rec in self.filtered(lambda x: x.main_payment_id or not x.use_payment_pro and x.company_id):
+            for rec in self:
+                if not rec.company_id:
+                    continue
+
                 bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
-                rec.available_journal_ids = rec.available_journal_ids.filtered(
-                    lambda x: x._origin.id != bundle_journal_id and not x._origin.currency_id
-                )
+                journals = rec.available_journal_ids
+
+                # If it's a linked payment remove bundle journal and journals with currency
+                if rec.main_payment_id:
+                    journals = journals.filtered(lambda j: j._origin.id != bundle_journal_id and not j.currency_id)
+                # If company doesn't use Payment Pro just remove bundle journal
+                elif not rec.use_payment_pro:
+                    journals = journals.filtered(lambda j: j._origin.id != bundle_journal_id)
+
+                rec.available_journal_ids = journals
 
     @api.depends("main_payment_id.to_pay_move_line_ids")
     def _compute_to_pay_move_lines(self):
@@ -109,6 +125,15 @@ class AccountPayment(models.Model):
     def _check_amount_in_main_payment(self):
         if self.filtered(lambda x: x.is_main_payment and x.amount != 0):
             raise ValidationError(_("The payment bundle amount always must be Zero"))
+
+    @api.constrains("company_id", "main_payment_id", "link_payment_ids")
+    def _check_bundle_company_consistency(self):
+        for rec in self:
+            if rec.main_payment_id and rec.company_id != rec.main_payment_id.company_id:
+                raise ValidationError(_("The main payment and linked payment must belong to the same company."))
+
+            if rec.link_payment_ids.filtered(lambda p: p.company_id != rec.company_id):
+                raise ValidationError(_("The main payment and linked payments must belong to the same company."))
 
     @api.onchange("withholdings_amount")
     def _onchange_withholdings(self):
@@ -175,24 +200,18 @@ class AccountPayment(models.Model):
         return res
 
     def _bypass_journal_entry(self):
-        return self.filtered(lambda x: x.is_main_payment and not (x.write_off_amount or x.withholdings_amount))
+        # Only main bundle payments (is_main_payment, no main_payment_id) without write-off or withholdings skip journal entry.
+        # Linked payments and regular payments always create journal entries, including write-off.
+        return self.filtered(
+            lambda x: x.is_main_payment and not x.main_payment_id and not (x.write_off_amount or x.withholdings_amount)
+        )
 
     def _generate_journal_entry(self, write_off_line_vals=None, force_balance=None, line_ids=None):
         super(AccountPayment, self - self._bypass_journal_entry())._generate_journal_entry(
-            write_off_line_vals=write_off_line_vals, force_balance=force_balance, line_ids=line_ids
+            write_off_line_vals=write_off_line_vals,
+            force_balance=force_balance,
+            line_ids=line_ids,
         )
-
-    def _prepare_move_line_default_vals(self, write_off_line_vals=None, force_balance=None):
-        res = super()._prepare_move_line_default_vals(write_off_line_vals, force_balance)
-        if self.payment_method_code == "payment_bundle":
-            bundle_account = self.payment_method_line_id.payment_account_id
-            res = [line for line in res if not (line.get("account_id") == bundle_account.id)]
-            for line in res:
-                if "tax_repartition_line_id" in line:
-                    tax_id = self.env["account.tax.repartition.line"].browse(line["tax_repartition_line_id"]).tax_id
-                    if tax_id.l10n_ar_withholding_payment_type:
-                        line["name"] = tax_id.name
-        return res
 
     @api.depends("partner_id", "amount", "date", "payment_type")
     def _compute_duplicate_payment_ids(self):
@@ -320,7 +339,7 @@ class AccountPayment(models.Model):
             amount_payments = abs(amount_inbound + amount_outbound)
 
             rec.payment_difference = (
-                rec.main_payment_id.selected_debt
+                abs(rec.main_payment_id.selected_debt)
                 - amount_payments
                 - rec.main_payment_id.withholdings_amount
                 - rec.main_payment_id.write_off_amount
