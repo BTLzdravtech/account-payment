@@ -21,7 +21,9 @@ class AccountPaymentRegister(models.TransientModel):
 
     @api.depends("available_journal_ids", "company_id")
     def _compute_available_journal_ids(self):
-        super()._compute_available_journal_ids()
-        for rec in self.filtered(lambda x: x.company_id and not x.use_payment_pro):
-            bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
-            rec.available_journal_ids = rec.available_journal_ids.filtered(lambda x: x._origin.id != bundle_journal_id)
+        res = super()._compute_available_journal_ids()
+        if self.env.company.country_code == 'AR':
+            for rec in self.filtered(lambda x: x.company_id and not x.use_payment_pro):
+                bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
+                rec.available_journal_ids = rec.available_journal_ids.filtered(lambda x: x._origin.id != bundle_journal_id)
+        return res

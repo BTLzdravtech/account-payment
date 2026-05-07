@@ -25,7 +25,8 @@ class ResCompany(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         companies = super().create(vals_list)
-        companies._create_payment_bundle_journal_if_needed()
+        if self.env.company.country_code == 'AR':
+            companies._create_payment_bundle_journal_if_needed()
         return companies
 
     def write(self, vals):
