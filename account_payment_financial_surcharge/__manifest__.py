@@ -1,6 +1,6 @@
 {
     "name": "Payments with Financial Surchange",
-    "version": "18.0.1.1.1",
+    "version": "18.0.1.1.2",
     "author": "ADHOC SA",
     "license": "AGPL-3",
     "category": "Payment",
