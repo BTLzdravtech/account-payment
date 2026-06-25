@@ -349,7 +349,7 @@ class AccountPayment(models.Model):
 
     @api.onchange("amount")
     def _onchange_amount_update_exact(self):
-        for rec in self:
+        for rec in self.filtered("currency_id"):
             if not rec.currency_id.is_zero(rec.amount - rec.amount_exact):
                 rec.amount_exact = rec.amount
 
@@ -384,7 +384,7 @@ class AccountPayment(models.Model):
             if (
                 rec.env.context.get("default_amount")
                 and rec.currency_id == rec.company_currency_id
-                and rec.amount_exact == rec._origin.amount_exact
+                and rec.currency_id.is_zero(rec._origin.amount_exact)
                 and not rec.currency_id.is_zero(amount - rec.env.context.get("default_amount"))
             ):
                 amount = rec.env.context.get("default_amount")
