@@ -555,10 +555,14 @@ class AccountPayment(models.Model):
         conciliacion de deuda de un asiento normal no lo muestra)
         """
         stored_payments = self.filtered("id")
+        # _get_valid_payment_account_types() does not depend on the filtered
+        # line, so we compute it once instead of on every line. Otherwise it
+        # triggers an N+1: account_balance_import overrides it to call
+        # company.get_unaffected_earnings_account(), which runs an uncached
+        # search on account.account once per evaluated line.
+        valid_payment_account_types = self._get_valid_payment_account_types()
         for rec in stored_payments:
-            payment_lines = rec.move_id.line_ids.filtered(
-                lambda x: x.account_type in self._get_valid_payment_account_types()
-            )
+            payment_lines = rec.move_id.line_ids.filtered(lambda x: x.account_type in valid_payment_account_types)
             debit_moves = payment_lines.mapped("matched_debit_ids.debit_move_id")
             credit_moves = payment_lines.mapped("matched_credit_ids.credit_move_id")
             debit_lines_sorted = debit_moves.filtered(lambda x: x.date_maturity != False).sorted(
@@ -768,7 +772,15 @@ class AccountPayment(models.Model):
                 )
 
     def _reconcile_after_post(self):
-        for rec in self.filtered(lambda x: x.company_id.use_payment_pro and not x.is_internal_transfer):
+        to_reconcile = self.filtered(lambda x: x.company_id.use_payment_pro and not x.is_internal_transfer)
+        # El pago con tarjeta de crédito llega a 'paid' con el asiento en borrador (el core no lo
+        # postea) y _reconcile_after_post exige posteados. Posteamos ese asiento antes de conciliar.
+        to_reconcile.filtered(
+            lambda p: p.state == "paid" and p.outstanding_account_id.account_type == "liability_credit_card"
+        ).move_id.filtered(
+            lambda m: m.state == "draft" and m.company_currency_id.is_zero(sum(m.line_ids.mapped("balance")))
+        ).action_post()
+        for rec in to_reconcile:
             counterpart_aml = rec.mapped("move_id.line_ids").filtered(
                 lambda r: not r.reconciled and r.account_id.account_type in self._get_valid_payment_account_types()
             )
