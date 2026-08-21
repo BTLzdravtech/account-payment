@@ -92,6 +92,7 @@ class l10nLatamAccountPaymentCheck(models.Model):
         if payment_method_change or partner_id_change:
             super()._compute_issuer_vat()
 
+    @api.depends("outstanding_line_id.account_id.reconcile")
     def _compute_issue_state(self):
         super()._compute_issue_state()
         for rec in self:
