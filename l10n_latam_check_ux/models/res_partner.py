@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from odoo import api, fields, models
 
 
@@ -10,22 +12,33 @@ class ResPartner(models.Model):
     @api.depends("add_check_credit")
     def _credit_debit_get(self):
         super()._credit_debit_get()
-        for partner in self.filtered("add_check_credit"):
-            partner_checks = self.env["l10n_latam.check"].search(
-                [
-                    # Partner actual
-                    ("partner_id", "=", partner.id),
-                    # Filtro por empresa actual
-                    ("company_id", "=", self.env.company.id),
-                    # Filtro On-Hand
-                    (
-                        "current_journal_id.inbound_payment_method_line_ids.payment_method_id.code",
-                        "=",
-                        "in_third_party_checks",
-                    ),
-                    # Cuya fecha de pago sea mayor a la de hoy
-                    ("payment_date", ">", fields.Date.context_today(self)),
-                ]
-            )
+        company = self.env.company
+        if company.country_code != "AR":
+            return
 
-            partner.credit += sum(partner_checks.mapped("amount"))
+        partners = self.filtered("add_check_credit")
+        if not partners:
+            return
+
+        checks = self.env["l10n_latam.check"].search(
+            [
+                ("partner_id", "in", partners.ids),
+                ("company_id", "=", company.id),
+                (
+                    "current_journal_id.inbound_payment_method_line_ids.payment_method_id.code",
+                    "=",
+                    "in_third_party_checks",
+                ),
+                ("payment_date", ">", fields.Date.context_today(self)),
+            ]
+        )
+        credit_by_partner = defaultdict(float)
+        for check in checks:
+            credit_by_partner[check.partner_id.id] += check.currency_id._convert(
+                check.amount,
+                company.currency_id,
+                company,
+                check.payment_date,
+            )
+        for partner in partners:
+            partner.credit += credit_by_partner[partner.id]

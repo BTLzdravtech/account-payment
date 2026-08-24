@@ -42,10 +42,10 @@ class AccountPayment(models.Model):
         self.filtered("is_main_payment").amount = 0
 
     @api.onchange("company_id")
-    def _onchange_company_id(self):
-        if self.env.company.country_code == 'AR':
-            if self.link_payment_ids:
-                self.link_payment_ids = [Command.clear()]
+    def _onchange_company_id_clear_bundle_links(self):
+        for rec in self:
+            if rec.company_id.country_code == "AR" and rec.link_payment_ids:
+                rec.link_payment_ids = [Command.clear()]
 
     @api.depends("link_payment_ids")
     def _compute_payment_total(self):

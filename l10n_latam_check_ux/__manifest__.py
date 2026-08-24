@@ -19,7 +19,7 @@
 ##############################################################################
 {
     "name": "Latam Check UX",
-    "version": "18.0.2.9.0",
+    "version": "18.0.2.9.1",
     "category": "Accounting",
     "sequence": 14,
     "summary": "",
@@ -31,6 +31,7 @@
         "l10n_latam_check",
         "account_ux",
         "account_internal_transfer",
+        "account_reports",
     ],
     "data": [
         "wizards/account_check_action_wizard_view.xml",

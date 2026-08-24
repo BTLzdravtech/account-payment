@@ -339,12 +339,19 @@ class AccountPayment(models.Model):
 
     @api.onchange("company_id")
     def _onchange_company_id(self):
-        if self._origin.company_id and self.company_id != self._origin.company_id and self.state == "draft":
-            self.remove_all()
+        for rec in self:
+            previous_company = rec._origin.company_id
+            if (
+                previous_company
+                and rec.company_id != previous_company
+                and rec.state == "draft"
+                and (previous_company.use_payment_pro or rec.company_id.use_payment_pro)
+            ):
+                rec.remove_all()
 
     @api.onchange("amount")
     def _onchange_amount_update_exact(self):
-        for rec in self:
+        for rec in self.filtered(lambda payment: payment.company_id.use_payment_pro):
             if not rec.currency_id:
                 rec._compute_currency_id()
             if rec.currency_id:
@@ -354,7 +361,7 @@ class AccountPayment(models.Model):
     @api.onchange("currency_id")
     def _onchange_currency_recompute_amount(self):
         """Al cambiar la moneda del diario, reconvertir amount a la nueva moneda A."""
-        for rec in self:
+        for rec in self.filtered(lambda payment: payment.company_id.use_payment_pro):
             new_currency = rec.currency_id
             # previous_currency_id se round-tripea desde el cliente en cada onchange,
             # por eso refleja la moneda real anterior (funciona en registros nuevos y
@@ -836,6 +843,10 @@ class AccountPayment(models.Model):
 
     @api.constrains("journal_id", "move_id")
     def _check_payment_move_journal_consistency(self):
-        for rec in self.filtered(lambda x: x.move_id and x.move_id.state not in ["draft", "cancel"]):
+        for rec in self.filtered(
+            lambda x: x.company_id.use_payment_pro
+            and x.move_id
+            and x.move_id.state not in ("draft", "cancel")
+        ):
             if rec.journal_id != rec.move_id.journal_id:
                 raise ValidationError(_("The payment journal must match the journal of its journal entry."))
