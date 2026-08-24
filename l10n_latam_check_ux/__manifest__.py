@@ -19,7 +19,7 @@
 ##############################################################################
 {
     "name": "Latam Check UX",
-    "version": "18.0.2.9.1",
+    "version": "18.0.2.9.2",
     "category": "Accounting",
     "sequence": 14,
     "summary": "",
@@ -48,6 +48,6 @@
     ],
     "demo": [],
     "installable": True,
-    "auto_install": True,
+    "auto_install": False,
     "application": False,
 }

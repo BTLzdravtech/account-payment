@@ -1,4 +1,8 @@
 from odoo import _, api, fields, models
+from odoo.exceptions import AccessError
+
+
+PROTECTED_IDENTIFICATION_FIELDS = {"name", "issuer_vat", "payment_date", "bank_id"}
 
 
 class l10nLatamAccountPaymentCheck(models.Model):
@@ -31,9 +35,16 @@ class l10nLatamAccountPaymentCheck(models.Model):
         compute="_compute_user_can_write",
     )
 
+    @api.depends_context("uid")
     def _compute_user_can_write(self):
-        for rec in self:
-            rec.user_can_write = rec.env.user.has_group("account.group_account_user")
+        self.user_can_write = self.env.user.has_group("account.group_account_user")
+
+    def write(self, vals):
+        if PROTECTED_IDENTIFICATION_FIELDS.intersection(vals) and not self.env.user.has_group(
+            "account.group_account_user"
+        ):
+            raise AccessError(_("Only accountants may modify check identification data."))
+        return super().write(vals)
 
     @api.depends("operation_ids.state", "payment_id.state")
     def _compute_company_id(self):
@@ -80,17 +91,13 @@ class l10nLatamAccountPaymentCheck(models.Model):
 
     @api.depends("payment_method_line_id.code", "payment_id.partner_id")
     def _compute_bank_id(self):
-        payment_method_change = self._origin.payment_method_line_id != self.payment_method_line_id
-        partner_id_change = self._origin.payment_id.partner_id != self.payment_id.partner_id
-        if payment_method_change or partner_id_change:
-            super()._compute_bank_id()
+        to_compute = self.filtered(lambda check: not check.bank_id)
+        super(l10nLatamAccountPaymentCheck, to_compute)._compute_bank_id()
 
     @api.depends("payment_method_line_id.code", "payment_id.partner_id")
     def _compute_issuer_vat(self):
-        payment_method_change = self._origin.payment_method_line_id != self.payment_method_line_id
-        partner_id_change = self._origin.payment_id.partner_id != self.payment_id.partner_id
-        if payment_method_change or partner_id_change:
-            super()._compute_issuer_vat()
+        to_compute = self.filtered(lambda check: not check.issuer_vat)
+        super(l10nLatamAccountPaymentCheck, to_compute)._compute_issuer_vat()
 
     @api.depends("outstanding_line_id.account_id.reconcile")
     def _compute_issue_state(self):

@@ -6,7 +6,7 @@ from odoo import api, fields, models
 class ResPartner(models.Model):
     _inherit = "res.partner"
 
-    add_check_credit = fields.Boolean("Agregar Crédito de Cheques")
+    add_check_credit = fields.Boolean("Agregar Crédito de Cheques", company_dependent=True)
 
     @api.depends_context("company")
     @api.depends("add_check_credit")

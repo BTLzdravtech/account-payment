@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="account.view_partner_property_form"/>
         <field name="arch" type="xml">
             <field name="credit" position="after">
-                <field name="add_check_credit"/>
+                <field name="add_check_credit" invisible="'AR' not in fiscal_country_codes"/>
             </field>
         </field>
     </record>
