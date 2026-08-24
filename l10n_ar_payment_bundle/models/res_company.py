@@ -25,16 +25,18 @@ class ResCompany(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         companies = super().create(vals_list)
-        if self.env.company.country_code == 'AR':
-            companies._create_payment_bundle_journal_if_needed()
+        companies.filtered(lambda company: company.country_id.code == "AR")._create_payment_bundle_journal_if_needed()
         return companies
 
     def write(self, vals):
-        previous_use_payment_pro = {company.id: company.use_payment_pro for company in self}
+        if "use_payment_pro" not in vals:
+            return super().write(vals)
+        ar_companies = self.filtered(lambda company: company.country_id.code == "AR")
+        previous_use_payment_pro = {company.id: company.use_payment_pro for company in ar_companies}
         res = super().write(vals)
-        if "use_payment_pro" in vals:
-            enabled_companies = self.filtered(lambda c: c.use_payment_pro and not previous_use_payment_pro.get(c.id))
-            enabled_companies._create_payment_bundle_journal_if_needed()
+        ar_companies.filtered(
+            lambda company: company.use_payment_pro and not previous_use_payment_pro.get(company.id)
+        )._create_payment_bundle_journal_if_needed()
         return res
 
     @tools.ormcache("self.id", "payment_type")
@@ -46,7 +48,8 @@ class ResCompany(models.Model):
                     [
                         ("inbound_payment_method_line_ids.payment_method_id.code", "=", "payment_bundle"),
                         ("company_id", "=", self.id),
-                    ]
+                    ],
+                    limit=1,
                 )
                 .id
             )
@@ -57,7 +60,8 @@ class ResCompany(models.Model):
                     [
                         ("outbound_payment_method_line_ids.payment_method_id.code", "=", "payment_bundle"),
                         ("company_id", "=", self.id),
-                    ]
+                    ],
+                    limit=1,
                 )
                 .id
             )
