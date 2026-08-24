@@ -26,18 +26,23 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
         else:
             self.requiere_account_cashbox_session = False
 
-    @api.depends("destination_journal_id")
+    @api.depends("destination_journal_id", "company_id")
     def _compute_cashbox_session_id(self):
+        sessions = self.env["account.cashbox.session"].search(
+            [
+                ("state", "=", "opened"),
+                ("company_id", "in", self.company_id.ids),
+                "|",
+                ("user_ids", "=", self.env.uid),
+                ("user_ids", "=", False),
+            ]
+        )
         for rec in self:
-            session_ids = (
-                self.env["account.cashbox.session"]
-                .search([("state", "=", "opened"), "|", ("user_ids", "=", self.env.uid), ("user_ids", "=", False)])
-                .filtered(lambda x: rec.destination_journal_id in x.cashbox_id.journal_ids)
+            candidates = sessions.filtered(
+                lambda session: session.company_id == rec.company_id
+                and rec.destination_journal_id in session.cashbox_id.journal_ids
             )
-            if len(session_ids) == 1:
-                rec.cashbox_session_id = session_ids.id
-            else:
-                rec.cashbox_session_id = False
+            rec.cashbox_session_id = candidates.id if len(candidates) == 1 else False
 
     def _create_payments(self):
         if self.env.company.country_code == 'AR':
