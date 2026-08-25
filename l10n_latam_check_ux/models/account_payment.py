@@ -13,12 +13,9 @@ class AccountPayment(models.Model):
     )
 
     @api.constrains("l10n_latam_move_check_ids_operation_date", "state")
-    def _check_last_operation_on_state_change(self):
-        """
-        Constraint to prevent changing the state of a check operation if it is not the last operation.
-        """
-        import_file = self.env.context.get("import_file")
-        if not import_file:
+    def _check_last_operation_on_import(self):
+        """Prevent imports from changing a check operation that is not the latest one."""
+        if not self.env.context.get("import_file"):
             return
         for rec in self:
             # Only validate if the payment has checks associated and state is changing

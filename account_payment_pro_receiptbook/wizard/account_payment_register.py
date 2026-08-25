@@ -1,4 +1,5 @@
 from odoo import models
+from odoo.exceptions import ValidationError
 
 
 class AccountPaymentRegister(models.TransientModel):
@@ -17,11 +18,18 @@ class AccountPaymentRegister(models.TransientModel):
         return receiptbook
 
     def _init_payments(self, to_process, edit_mode=False):
-        if self.env.company.country_code == 'AR':
+        if self.company_id.country_code == "AR":
             for rec in to_process:
-                if rec["batch"]:
+                if rec.get("batch"):
                     if receiptbook := self._get_receiptbook(rec["batch"]["payment_values"]["partner_type"]):
+                        if not receiptbook.sequence_id:
+                            raise ValidationError(
+                                self.env._(
+                                    "Please define a sequence on receiptbook %(name)s.",
+                                    name=receiptbook.display_name,
+                                )
+                            )
                         name = receiptbook.with_context(ir_sequence_date=self.payment_date).sequence_id.next_by_id()
                         rec["create_vals"]["name"] = "%s %s" % (receiptbook.document_type_id.doc_code_prefix, name)
-                rec["create_vals"]["name"] = rec["create_vals"].get("name", "/")
+                rec["create_vals"].setdefault("name", "/")
         return super()._init_payments(to_process, edit_mode=edit_mode)
