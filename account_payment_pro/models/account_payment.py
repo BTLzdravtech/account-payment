@@ -149,15 +149,17 @@ class AccountPayment(models.Model):
     @api.model
     def default_get(self, fields_list):
         res = super().default_get(fields_list)
-        if "previous_currency_id" in fields_list and "previous_currency_id" not in res:
-            currency_id = res.get("currency_id")
-            if not currency_id:
-                journal_id = res.get("journal_id") or self._context.get("default_journal_id")
-                if journal_id:
-                    journal = self.env["account.journal"].browse(journal_id)
-                    currency_id = (journal.currency_id or journal.company_id.currency_id).id
-            if currency_id:
-                res["previous_currency_id"] = currency_id
+
+        if self.env.company.country_code == 'AR':
+            if "previous_currency_id" in fields_list and "previous_currency_id" not in res:
+                currency_id = res.get("currency_id")
+                if not currency_id:
+                    journal_id = res.get("journal_id") or self._context.get("default_journal_id")
+                    if journal_id:
+                        journal = self.env["account.journal"].browse(journal_id)
+                        currency_id = (journal.currency_id or journal.company_id.currency_id).id
+                if currency_id:
+                    res["previous_currency_id"] = currency_id
         return res
 
     @api.depends("journal_id")
@@ -204,9 +206,10 @@ class AccountPayment(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        for vals in vals_list:
-            if "amount" in vals and "amount_exact" not in vals:
-                vals["amount_exact"] = vals["amount"]
+        if self.env.company.country_code == 'AR':
+            for vals in vals_list:
+                if "amount" in vals and "amount_exact" not in vals:
+                    vals["amount_exact"] = vals["amount"]
         return super().create(vals_list)
 
     def write(self, vals):
