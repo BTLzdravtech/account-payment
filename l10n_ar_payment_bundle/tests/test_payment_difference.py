@@ -2,12 +2,12 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 from odoo import Command, fields
+from odoo.addons.l10n_ar.tests.common import TestAr
 from odoo.tests import tagged
-from odoo.tests.common import TransactionCase
 
 
 @tagged("post_install", "-at_install")
-class TestPaymentDifference(TransactionCase):
+class TestPaymentDifference(TestAr):
     """Test payment_difference calculation with write off and credit notes
 
     Main scenario being tested: commit a5a4aed5 fixed payment_difference calculation
@@ -18,8 +18,9 @@ class TestPaymentDifference(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.company = cls.env.company
+        cls.company = cls.company_ri
         cls.company.use_payment_pro = True
+        cls.product = cls.env["product.product"].create({"name": "Payment Bundle Test Product"})
 
         # Get or create payment bundle journal
         bundle_journal_id = cls.company._get_bundle_journal("inbound")
@@ -113,7 +114,7 @@ class TestPaymentDifference(TransactionCase):
                 "invoice_line_ids": [
                     Command.create(
                         {
-                            "product_id": self.env.ref("product.product_product_16").id,
+                            "product_id": self.product.id,
                             "quantity": 1,
                             "price_unit": amount,
                         }
@@ -146,11 +147,11 @@ class TestPaymentDifference(TransactionCase):
         # Create payment bundle
         payment = self._create_payment_bundle()
         payment.to_pay_move_line_ids = invoice.line_ids.filtered(
-            lambda l: l.account_id.account_type in ("asset_receivable", "liability_payable")
+            lambda line: line.account_id.account_type in ("asset_receivable", "liability_payable")
         )
 
         # Create linked payment for 500
-        self.env["account.payment"].create(
+        linked_payment = self.env["account.payment"].create(
             {
                 "payment_type": "inbound",
                 "partner_type": "customer",
@@ -161,11 +162,9 @@ class TestPaymentDifference(TransactionCase):
             }
         )
 
-        payment._compute_payment_difference()
-
         # Expected: abs(1000) - 500 = 500
         self.assertAlmostEqual(
-            payment.payment_difference,
+            linked_payment.payment_difference,
             500.0,
             places=2,
             msg="Payment difference should be 500 (1000 debt - 500 payment)",
@@ -179,10 +178,10 @@ class TestPaymentDifference(TransactionCase):
         payment = self._create_payment_bundle()
         payment.write_off_amount = 50.0
         payment.to_pay_move_line_ids = invoice.line_ids.filtered(
-            lambda l: l.account_id.account_type in ("asset_receivable", "liability_payable")
+            lambda line: line.account_id.account_type in ("asset_receivable", "liability_payable")
         )
 
-        self.env["account.payment"].create(
+        linked_payment = self.env["account.payment"].create(
             {
                 "payment_type": "inbound",
                 "partner_type": "customer",
@@ -193,11 +192,9 @@ class TestPaymentDifference(TransactionCase):
             }
         )
 
-        payment._compute_payment_difference()
-
         # Expected: abs(1000) - 800 - 50 = 150
         self.assertAlmostEqual(
-            payment.payment_difference,
+            linked_payment.payment_difference,
             150.0,
             places=2,
             msg="Payment difference should be 150 (1000 debt - 800 payment - 50 write_off)",
@@ -221,10 +218,10 @@ class TestPaymentDifference(TransactionCase):
 
         payment = self._create_payment_bundle()
         payment.to_pay_move_line_ids = credit_note.line_ids.filtered(
-            lambda l: l.account_id.account_type in ("asset_receivable", "liability_payable")
+            lambda line: line.account_id.account_type in ("asset_receivable", "liability_payable")
         )
 
-        self.env["account.payment"].create(
+        linked_payment = self.env["account.payment"].create(
             {
                 "payment_type": "outbound",
                 "partner_type": "customer",
@@ -235,18 +232,12 @@ class TestPaymentDifference(TransactionCase):
             }
         )
 
-        payment._compute_payment_difference()
-
-        # The key fix is that abs(selected_debt) is used.
-        # Result: abs(-500) - 400 = 100 (but displayed as -100 for outbound context)
-        # WITHOUT the fix it would calculate from -500 - 400 giving much worse results
-        expected_abs_value = 100.0
+        # Result: abs(-500) - 400 = 100.
         self.assertAlmostEqual(
-            abs(payment.payment_difference),
-            expected_abs_value,
+            linked_payment.payment_difference,
+            100.0,
             places=2,
-            msg=f"Payment difference absolute value should be {expected_abs_value}. "
-            f"The fix ensures abs(selected_debt) is used to prevent incorrect calculations.",
+            msg="Payment difference should use the absolute credit-note debt",
         )
 
     def test_payment_difference_credit_note_with_write_off(self):
@@ -261,10 +252,10 @@ class TestPaymentDifference(TransactionCase):
         payment = self._create_payment_bundle()
         payment.write_off_amount = 100.0
         payment.to_pay_move_line_ids = credit_note.line_ids.filtered(
-            lambda l: l.account_id.account_type in ("asset_receivable", "liability_payable")
+            lambda line: line.account_id.account_type in ("asset_receivable", "liability_payable")
         )
 
-        self.env["account.payment"].create(
+        linked_payment = self.env["account.payment"].create(
             {
                 "payment_type": "outbound",
                 "partner_type": "customer",
@@ -275,20 +266,11 @@ class TestPaymentDifference(TransactionCase):
             }
         )
 
-        payment._compute_payment_difference()
-
-        # The main validation is that calculation completed using abs(selected_debt)
-        # The actual value depends on how write_off is handled for outbound payments
-        # What matters is it's not an extreme/wrong value like would happen without abs()
-        self.assertIsNotNone(
-            payment.payment_difference,
-            msg="Payment difference should be calculated",
-        )
-        # Verify it's a reasonable value (not thousands off due to missing abs())
-        self.assertLess(
-            abs(payment.payment_difference),
-            1000.0,
-            msg="Payment difference should be reasonable (using abs ensures this)",
+        self.assertAlmostEqual(
+            linked_payment.payment_difference,
+            100.0,
+            places=2,
+            msg="Payment difference should include the credit-note write-off",
         )
 
     def test_payment_difference_multiple_linked_payments(self):
@@ -299,12 +281,13 @@ class TestPaymentDifference(TransactionCase):
         payment = self._create_payment_bundle()
         payment.write_off_amount = 50.0
         payment.to_pay_move_line_ids = invoice.line_ids.filtered(
-            lambda l: l.account_id.account_type in ("asset_receivable", "liability_payable")
+            lambda line: line.account_id.account_type in ("asset_receivable", "liability_payable")
         )
 
         # Create 3 linked payments
+        linked_payments = self.env["account.payment"]
         for amount in [500.0, 800.0, 300.0]:
-            self.env["account.payment"].create(
+            linked_payments |= self.env["account.payment"].create(
                 {
                     "payment_type": "inbound",
                     "partner_type": "customer",
@@ -315,15 +298,14 @@ class TestPaymentDifference(TransactionCase):
                 }
             )
 
-        payment._compute_payment_difference()
-
         # Expected: abs(2000) - (500 + 800 + 300) - 50 = 350
-        self.assertAlmostEqual(
-            payment.payment_difference,
-            350.0,
-            places=2,
-            msg="Payment difference should be 350 (2000 - 1600 - 50)",
-        )
+        for linked_payment in linked_payments:
+            self.assertAlmostEqual(
+                linked_payment.payment_difference,
+                350.0,
+                places=2,
+                msg="Payment difference should be 350 (2000 - 1600 - 50)",
+            )
 
     def test_payment_difference_zero_when_exact(self):
         """Test payment_difference is zero when amounts match exactly"""
@@ -333,11 +315,11 @@ class TestPaymentDifference(TransactionCase):
         payment = self._create_payment_bundle()
         payment.write_off_amount = 50.0
         payment.to_pay_move_line_ids = invoice.line_ids.filtered(
-            lambda l: l.account_id.account_type in ("asset_receivable", "liability_payable")
+            lambda line: line.account_id.account_type in ("asset_receivable", "liability_payable")
         )
 
         # 1000 - 50 (write_off) = 950
-        self.env["account.payment"].create(
+        linked_payment = self.env["account.payment"].create(
             {
                 "payment_type": "inbound",
                 "partner_type": "customer",
@@ -348,11 +330,9 @@ class TestPaymentDifference(TransactionCase):
             }
         )
 
-        payment._compute_payment_difference()
-
         # Expected: abs(1000) - 950 - 50 = 0
         self.assertAlmostEqual(
-            payment.payment_difference,
+            linked_payment.payment_difference,
             0.0,
             places=2,
             msg="Payment difference should be 0 when amounts match exactly",

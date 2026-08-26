@@ -12,6 +12,7 @@ class AccountPaymentRegister(models.TransientModel):
 
     use_payment_pro = fields.Boolean(compute="_compute_use_payment_pro")
 
+    @api.depends("company_id", "payment_method_line_id")
     def _compute_use_payment_pro(self):
         payment_with_pro = self.filtered(
             lambda x: x.company_id.use_payment_pro and x.payment_method_line_id.payment_account_id
@@ -19,11 +20,14 @@ class AccountPaymentRegister(models.TransientModel):
         payment_with_pro.use_payment_pro = True
         (self - payment_with_pro).use_payment_pro = False
 
-    @api.depends("available_journal_ids", "company_id")
+    @api.depends("use_payment_pro")
     def _compute_available_journal_ids(self):
         res = super()._compute_available_journal_ids()
-        if self.env.company.country_code == 'AR':
-            for rec in self.filtered(lambda x: x.company_id and not x.use_payment_pro):
-                bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
-                rec.available_journal_ids = rec.available_journal_ids.filtered(lambda x: x._origin.id != bundle_journal_id)
+        for rec in self.filtered(
+            lambda wizard: wizard.company_id.country_id.code == "AR" and not wizard.use_payment_pro
+        ):
+            bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
+            rec.available_journal_ids = rec.available_journal_ids.filtered(
+                lambda journal: journal._origin.id != bundle_journal_id
+            )
         return res

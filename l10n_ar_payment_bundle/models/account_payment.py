@@ -42,10 +42,10 @@ class AccountPayment(models.Model):
         self.filtered("is_main_payment").amount = 0
 
     @api.onchange("company_id")
-    def _onchange_company_id(self):
-        if self.env.company.country_code == 'AR':
-            if self.link_payment_ids:
-                self.link_payment_ids = [Command.clear()]
+    def _onchange_company_id_clear_bundle_links(self):
+        for rec in self:
+            if rec.company_id.country_code == "AR" and rec.link_payment_ids:
+                rec.link_payment_ids = [Command.clear()]
 
     @api.depends("link_payment_ids")
     def _compute_payment_total(self):
@@ -328,8 +328,18 @@ class AccountPayment(models.Model):
             for rec in self.filtered("main_payment_id"):
                 rec.partner_id = rec.main_payment_id.partner_id
 
+    @api.depends(
+        "main_payment_id.selected_debt",
+        "main_payment_id.withholdings_amount",
+        "main_payment_id.write_off_amount",
+        "main_payment_id.link_payment_ids.amount_company_currency_signed",
+    )
     def _compute_payment_difference(self):
-        for rec in self.filtered("main_payment_id"):
+        linked_payments = self.filtered(
+            lambda payment: payment.main_payment_id and payment.company_id.country_id.code == "AR"
+        )
+        super(AccountPayment, self - linked_payments)._compute_payment_difference()
+        for rec in linked_payments:
             payments = rec.main_payment_id.link_payment_ids
             amount_outbound = sum(
                 payments.filtered(lambda p: p.payment_type == "outbound").mapped("amount_company_currency_signed")
@@ -345,11 +355,6 @@ class AccountPayment(models.Model):
                 - rec.main_payment_id.withholdings_amount
                 - rec.main_payment_id.write_off_amount
             )
-
-        # for rec in self - self.filtered("main_payment_id"):
-        #     return super()._compute_payment_difference()
-        # DONETODO: Odoo BTL - doesn't this just call super on self (all records) multiple times without filter?
-        return super()._compute_payment_difference()
 
     @api.depends("payment_type", "link_payment_ids.payment_type")
     def _compute_warnings(self):
