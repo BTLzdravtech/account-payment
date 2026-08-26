@@ -44,11 +44,19 @@ class AccountMove(models.Model):
         receiptbook_recs.made_sequence_hole = False
         super(AccountMove, self - receiptbook_recs)._compute_made_sequence_hole()
 
-    @api.depends()
+    @api.depends(
+        "origin_payment_id.name",
+        "origin_payment_id.payment_transaction_id",
+        "origin_payment_id.receiptbook_id",
+        "origin_payment_id.state",
+    )
     def _compute_name(self):
         super()._compute_name()
         for move in self.filtered(
             lambda x: x.origin_payment_id.receiptbook_id
+            and x.origin_payment_id.name
+            and x.origin_payment_id.name != "/"
+            and x.state != "posted"
             and (
                 x.state == "draft" or x.origin_payment_id.state == "draft" or x.origin_payment_id.payment_transaction_id
             )
@@ -99,8 +107,7 @@ class AccountMove(models.Model):
 
     def _must_check_constrains_date_sequence(self):
         # OVERRIDES sequence.mixin to skip date sequence check for receiptbook moves
-        if self.env.company.country_code == 'AR':
-            self.ensure_one()
-            if self.receiptbook_id:
-                return False
+        self.ensure_one()
+        if self.country_code == "AR" and self.receiptbook_id:
+            return False
         return super()._must_check_constrains_date_sequence()

@@ -11,6 +11,9 @@
             <field name="amount" position="attributes">
                 <attribute name="readonly">True</attribute>
             </field>
+            <field name="name" position="before">
+                <field name="user_can_write" invisible="1"/>
+            </field>
             <field name="name" position="attributes">
                 <attribute name="readonly">not user_can_write</attribute>
             </field>
