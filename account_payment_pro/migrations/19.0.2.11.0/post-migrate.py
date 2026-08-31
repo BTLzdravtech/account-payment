@@ -18,7 +18,13 @@ forzando el recompute (misma logica que ya usa
 
 import logging
 
-from odoo.upgrade import util
+# BTL: ``odoo.upgrade`` exposes ``util`` only when Odoo runs with ``--upgrade-path``
+# (it lives in the separate odoo/upgrade-util repo, not in odoo core). A plain
+# ``odoo-bin -u`` branch build has no such path, so the import raised ImportError and
+# aborted the whole registry load. The helper it provided here just builds a superuser
+# Environment. TODO: Upgrade 19.0 - revert if upgrade-util is ever vendored.
+from odoo import api
+from odoo.api import SUPERUSER_ID
 
 _logger = logging.getLogger(__name__)
 
@@ -40,7 +46,7 @@ def migrate(cr, version):
 
     _logger.info("account_payment_pro: running post-migrate for %s", version)
 
-    env = util.env(cr)
+    env = api.Environment(cr, SUPERUSER_ID, {})
     payments = env["account.payment"].search(
         [
             ("outstanding_account_id", "=", False),
