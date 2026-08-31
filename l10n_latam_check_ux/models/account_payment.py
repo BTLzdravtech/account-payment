@@ -40,7 +40,7 @@ class AccountPayment(models.Model):
         for rec in self:
             if rec.l10n_latam_check_warning_msg:
                 raise ValidationError("%s" % rec.l10n_latam_check_warning_msg)
-            rec.l10n_latam_move_check_ids_operation_date = fields.Datetime.now()
+            rec.l10n_latam_move_check_ids_operation_date = rec.create_date if rec.create_date else fields.Datetime.now()
 
         # Detectar cheques de terceros existentes usados más de una vez dentro del mismo
         # batch de confirmación (ej: bundle confirma dos pagos hijos en draft que tienen
@@ -128,6 +128,24 @@ class AccountPayment(models.Model):
                     rec.paired_internal_transfer_payment_id.payment_method_line_id = correct_dest_payment_method
             super(AccountPayment, self - third_party_checks)._create_paired_internal_transfer_payment()
 
+    def _get_reconciled_checks_error(self):
+        """No bloquear los cheques propios con débito automático.
+
+        Cuando la cuenta del método de pago de cheques propios no es conciliable (típicamente
+        porque es la misma cuenta del diario de liquidez, es decir el banco debita el cheque al
+        emitirlo), el cheque nace en ``debited`` y nunca va a salir de ese estado: no hay
+        conciliación que lo mueva (ver ``l10n_latam.check._compute_issue_state``). La restricción
+        del core existe para no romper la conciliación que debitó o anuló el cheque, así que en
+        este caso no aplica y el pago se puede restablecer a borrador o cancelar.
+        """
+        payments_with_reconciled_checks = self.filtered(
+            lambda payment: payment.l10n_latam_new_check_ids.filtered(
+                lambda check: check.issue_state in ("debited", "voided")
+                and check.outstanding_line_id.account_id.reconcile
+            )
+        )
+        return super(AccountPayment, payments_with_reconciled_checks)._get_reconciled_checks_error()
+
     def action_draft(self):
         for rec in self:
             for check in rec.mapped("l10n_latam_move_check_ids") + rec.mapped("l10n_latam_new_check_ids"):
@@ -189,7 +207,7 @@ class AccountPayment(models.Model):
             )
         ):
             invalid_checks = rec.l10n_latam_move_check_ids.filtered(
-                lambda c: c.current_journal_id != rec.destination_journal_id
+                lambda c: c.current_journal_id and c.current_journal_id != rec.destination_journal_id
             )
             if invalid_checks:
                 raise ValidationError(
@@ -260,3 +278,115 @@ class AccountPayment(models.Model):
             )
 
         return vals
+
+    @api.depends("l10n_latam_new_check_ids.amount", "l10n_latam_move_check_ids.amount")
+    def _compute_counterpart_currency_amount(self):
+        """Con varios cheques, el importe mostrado se arma como el del asiento: cheque por cheque.
+
+        El campo es de `account_payment_pro` y convierte el total de una sola vez; el asiento redondea
+        cada línea de cheque por separado y suma. Esa diferencia se veía como un centavo entre el
+        importe del pago y su propia línea contable (ticket 123832). Se usa la misma cotización que el
+        asiento —la que sale de `amount_exact`, no la del campo— porque si no vuelve a diferir justo
+        en los flujos donde el usuario tipea el importe.
+
+        El resto de los pagos ni pasa por acá.
+        """
+        per_check = self.filtered(lambda pay: pay._has_counterpart_amount_per_check())
+        super(AccountPayment, self - per_check)._compute_counterpart_currency_amount()
+        for pay in per_check:
+            rate = (pay.amount_exact or pay.amount) / pay.accounting_rate / pay.amount
+            pay.counterpart_currency_amount = sum(
+                pay.company_currency_id.round(check.amount * rate)
+                for check in pay.l10n_latam_new_check_ids | pay.l10n_latam_move_check_ids
+            )
+
+    def _inverse_counterpart_currency_amount(self):
+        """El reparto por cheque no es un importe tipeado por el usuario.
+
+        El inverse de `account_payment_pro` deduce el importe del pago del que muestra la
+        contrapartida, y así recupera precisión cuando el importe llega de una sincronización (tarea
+        65829). Pero con varios cheques la diferencia es el resto de repartir, no un importe nuevo:
+        aplicarlo correría el `amount` del pago y los cheques dejarían de sumarlo (ticket 123832).
+        """
+        for pay in self:
+            if pay._has_counterpart_amount_per_check():
+                continue
+            super(AccountPayment, pay)._inverse_counterpart_currency_amount()
+
+    def _has_counterpart_amount_per_check(self):
+        """Si el importe de la contrapartida lo arma el reparto cheque por cheque."""
+        self.ensure_one()
+        return bool(
+            self.counterpart_currency_id == self.company_currency_id
+            and self.accounting_rate
+            and self.amount
+            and len(self.l10n_latam_new_check_ids | self.l10n_latam_move_check_ids) > 1
+        )
+
+    def _prepare_move_liquidity_lines(self, default_values):
+        """Valúa todos los cheques a la cotización que el asiento ya dio por buena.
+
+        `l10n_latam_check` convierte cada cheque a la cotización de su propia fecha de vencimiento y
+        descarta el balance que recibe acá, que es el que la contrapartida ya usó — la cotización del
+        pago, o la que llegó como `force_balance`. Con dos cotizaciones en el mismo asiento no cierra:
+        "El asiento no está balanceado" al confirmar (ticket 123832, BUG-2 de la task 70884).
+
+        La cotización se deduce de `balance` sobre el importe del pago, NO del par
+        balance/amount_currency: con retenciones ese par llega neteado, y en `amount_currency` el core
+        le resta importes que pueden venir en otra moneda. Del balance, en cambio, la retención se
+        recupera sumándola de vuelta: es una cifra en moneda de compañía y no mezcla nada.
+
+        Se deduce en vez de llamar a `_convert` por línea justamente para honrar el balance que llegó,
+        venga de la fecha del pago o forzado, y para no pagar una consulta de cotización por cheque.
+
+        El origen está en `l10n_latam_check._prepare_move_liquidity_lines`, que NO es código de
+        odoo/odoo 19.0: llega por el PR odoo#248741 (abierto, de Adhoc) que nuestra imagen mergea.
+        El arreglo definitivo va ahí; mientras ese PR siga abierto, esto lo cubre desde afuera. Ojo al
+        limpiarlo: el día que el origen respete el balance que entrega, esto queda inocuo pero sigue
+        decidiendo dónde cae el resto del redondeo, así que no es un borrado a ciegas.
+        """
+        lines = super()._prepare_move_liquidity_lines(default_values)
+        if not lines[0].get("l10n_latam_check_ids") or not self.amount:
+            # no las armó `l10n_latam_check`: no hay una línea por cheque que revaluar
+            return lines
+
+        balance = default_values["balance"]
+        if not self.currency_id.is_zero(abs(default_values["amount_currency"]) - abs(self.amount)):
+            # el importe llegó neteado: el core ya le restó las retenciones al balance
+            # (`liquidity_balance -= withholding_balance`), así que se las devolvemos para
+            # recuperar la cotización con la que se armó el asiento.
+            balance += sum(line["balance"] for line in self._prepare_move_withholding_lines({}))
+
+        rate = abs(balance) / abs(self.amount)
+        for line in lines:
+            line["balance"] = self.company_currency_id.round(line["amount_currency"] * rate)
+        return lines
+
+    def _prepare_move_lines_per_type(self, write_off_line_vals=None, force_balance=None):
+        """La contrapartida se arma desde las líneas que quedaron en el asiento.
+
+        El core la calcula desde un único balance de liquidez, que con cheques no existe: son N
+        líneas, cada una redondeada por su cuenta, y con retenciones ese balance además llega neteado
+        mientras los cheques van por su importe completo. Sumar lo que realmente quedó —cheques,
+        write-off y retenciones— es lo único que cierra en los dos casos.
+
+        `account_payment_pro` hace esta misma cuenta detrás de `use_payment_pro`: si la fórmula
+        cambia, hay que cambiarla en los dos lados hasta que viva en `account_ux`.
+        """
+        res = super()._prepare_move_lines_per_type(write_off_line_vals=write_off_line_vals, force_balance=force_balance)
+        liquidity_lines = res["liquidity_lines"]
+        if not liquidity_lines[0].get("l10n_latam_check_ids"):
+            return res
+        counterpart_lines = res["counterpart_lines"]
+        if not counterpart_lines:
+            return res
+
+        counterpart_lines[0]["balance"] = -sum(
+            line["balance"] for key in ("liquidity_lines", "write_off_lines", "withholding_lines") for line in res[key]
+        )
+        if counterpart_lines[0].get("currency_id") == self.company_currency_id.id:
+            # La contrapartida quedó en moneda de compañía: ahí nominal y balance son la misma
+            # cifra, y el nominal lo dejó quien calculó el balance anterior. Sin espejarlo, el ORM
+            # redondea el nominal viejo, deriva el balance de él y el asiento vuelve a no cerrar.
+            counterpart_lines[0]["amount_currency"] = counterpart_lines[0]["balance"]
+        return res
