@@ -3,11 +3,12 @@
     "author": "ADHOC SA",
     "website": "https://www.adhoc.com.ar",
     "category": "Technical",
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.1.1",
     "depends": ["product", "account"],
     "license": "LGPL-3",
     "images": [],
     "installable": True,
+    "auto_install": False,
     "data": [
         "security/ir.model.access.csv",
         "security/ir_rule.xml",
