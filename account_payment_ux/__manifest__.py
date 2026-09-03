@@ -2,14 +2,14 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 {
     "name": "Account Payment UX",
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.1.1",
     "category": "Payment",
     "website": "www.adhoc.com.ar",
     "author": "ADHOC SA",
     "license": "AGPL-3",
     "application": False,
     "installable": True,
-    "auto_install": True,
+    "auto_install": False,
     "external_dependencies": {
         "python": [],
         "bin": [],
