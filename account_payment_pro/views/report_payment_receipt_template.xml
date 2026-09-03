@@ -15,22 +15,16 @@
         </t>
     </template>
 
-    <!-- Primary payment receipt document template.
-         Provides the full page structure: partner info, payments table,
-         matching table, and named injection points for localizations.
-         priority=16 beats the default Odoo template. -->
-    <template id="report_payment_receipt_document_pro"
-              inherit_id="account.report_payment_receipt_document"
-              primary="True"
-              priority="16">
-        <t t-set="o" position="after">
+    <!-- Payment Pro receipt document template. It is standalone so the core receipt
+         structure remains available to companies that do not resolve this template. -->
+    <template id="report_payment_receipt_document_pro">
+        <t t-call="web.external_layout">
+            <t t-set="o" t-value="o.with_context(lang=lang)"/>
             <!-- Fallback: if payment_bundle was not injected by the outer loop use o alone -->
             <t t-if="not payment_bundle" t-set="payment_bundle" t-value="o"/>
             <t t-set="report_date" t-value="o.date"/>
             <t t-set="report_number" t-value="o.name"/>
             <t t-set="report_name" t-value="o.payment_type == 'outbound' and _('Payment Order') or _('Receipt')"/>
-        </t>
-        <div class="page" position="replace">
             <div class="page">
 
                 <!-- ── Partner info ─────────────────────────────────────────────── -->
@@ -200,7 +194,7 @@
                 <span name="payment_footer"/>
 
             </div>
-        </div>
+        </t>
     </template>
 
 </odoo>
