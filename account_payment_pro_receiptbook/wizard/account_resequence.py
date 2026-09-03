@@ -1,11 +1,32 @@
 import json
 
-from odoo import _, models
+from odoo import _, api, models
 from odoo.exceptions import ValidationError
 
 
 class AccountResequenceWizard(models.TransientModel):
     _inherit = "account.resequence.wizard"
+
+    @api.model
+    def default_get(self, fields_list):
+        values = super().default_get(fields_list)
+        if "move_ids" not in fields_list or self.env.context.get("active_model") != "account.move":
+            return values
+
+        active_moves = self.env["account.move"].browse(self.env.context.get("active_ids", []))
+        receiptbook_moves = active_moves.filtered(lambda move: move.company_id.use_receiptbook and move.receiptbook_id)
+        if not receiptbook_moves:
+            return values
+        if len(receiptbook_moves) != len(active_moves):
+            raise ValidationError(
+                _(
+                    "You can only resequence items if all selected moves belong to the same receiptbook, or if none have a receiptbook assigned."
+                )
+            )
+        if len(receiptbook_moves.receiptbook_id) > 1:
+            raise ValidationError(_("You can only resequence items from the same receiptbook"))
+        values["move_ids"] = [(6, 0, active_moves.ids)]
+        return values
 
     def resequence(self):
         # receiptbook logic only applies to payment moves
