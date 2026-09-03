@@ -22,7 +22,11 @@ class AccountMove(models.Model):
         if self.env.context.get("force_delete"):
             return
         payments = self.origin_payment_id.filtered(
-            lambda payment: payment._is_latam_check_payment() and payment.state not in ("draft", "canceled")
+            lambda payment: (
+                payment.company_id.country_code == "AR"
+                and payment._is_latam_check_payment()
+                and payment.state not in ("draft", "canceled")
+            )
         )
         if payments:
             raise UserError(

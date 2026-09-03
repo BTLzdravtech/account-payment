@@ -17,16 +17,27 @@ class AccountPayment(models.Model):
     )
 
     def write(self, vals):
-        if "receiptbook_id" in vals and any(rec.receiptbook_id.id != vals["receiptbook_id"] for rec in self):
-            vals["name"] = "/"
-        res = super().write(vals)
-        return res
+        receiptbook_payments = self.filtered("company_id.use_receiptbook")
+        standard_payments = self - receiptbook_payments
+        result = True
+        if standard_payments:
+            result = super(AccountPayment, standard_payments).write(vals)
+        if receiptbook_payments:
+            receiptbook_vals = dict(vals)
+            if "receiptbook_id" in receiptbook_vals and any(
+                payment.receiptbook_id.id != receiptbook_vals["receiptbook_id"] for payment in receiptbook_payments
+            ):
+                receiptbook_vals["name"] = "/"
+            result = super(AccountPayment, receiptbook_payments).write(receiptbook_vals) and result
+        return result
 
     def action_post(self):
         # si no tengo nombre y tengo talonario de recibo, numeramos con el talonario
         for rec in self.filtered(
             lambda x: (
-                x.receiptbook_id and (not x.name or x.name == "/" or (x.move_id and not x.move_id._get_last_sequence()))
+                x.company_id.use_receiptbook
+                and x.receiptbook_id
+                and (not x.name or x.name == "/" or (x.move_id and not x.move_id._get_last_sequence()))
             )
         ):
             if not rec.receiptbook_id.active:
@@ -49,10 +60,10 @@ class AccountPayment(models.Model):
         # Ya que debido al fix en
         # https://github.com/ingadhoc/account-payment/commit/8a6ff0564d3526ec8ead24c90a8e53267d038f6a
         # se esta evitando el recomputo para impedir que este vuelva a False.
-        for rec in self.filtered(lambda x: x.receiptbook_id):
+        for rec in self.filtered(lambda payment: payment.company_id.use_receiptbook and payment.receiptbook_id):
             rec.move_id.l10n_latam_document_type_id = rec.receiptbook_id.document_type_id.id
 
-        payments_to_send = self
+        payments_to_send = self.filtered("company_id.use_receiptbook")
         # El bundle imputa sus pagos vinculados al final de su action_post, así que acá
         # el recibo saldría "A cuenta". Diferimos el envío del main: lo dispara el bundle.
         if "is_main_payment" in self._fields:
@@ -88,8 +99,8 @@ class AccountPayment(models.Model):
             AccountPayment,
             self.filtered(
                 lambda x: (
-                    (not x.move_id or x.move_id.state != "draft" or not x.receiptbook_id)
-                    and not (x.receiptbook_id and x.payment_transaction_id)
+                    not (x.company_id.use_receiptbook and x.receiptbook_id)
+                    or ((not x.move_id or x.move_id.state != "draft") and not x.payment_transaction_id)
                 )
             ),
         )._compute_name()

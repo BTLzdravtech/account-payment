@@ -83,7 +83,12 @@ class AccountPayment(models.Model):
 
     @api.model
     def default_get(self, default_fields):
-        if self.env.context.get("open_invoice_payment", False):
+        company = self.env["res.company"].browse(self.env.context.get("default_company_id")) or self.env.company
+        if (
+            self.env.context.get("open_invoice_payment", False)
+            and company.country_code == "AR"
+            and company.use_payment_pro
+        ):
             self = self.with_context(active_ids=None, active_model=None)
         return super().default_get(default_fields)
 

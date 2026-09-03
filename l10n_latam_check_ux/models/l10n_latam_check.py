@@ -41,8 +41,11 @@ class l10nLatamAccountPaymentCheck(models.Model):
             rec.company_id = last_operation.company_id
 
     def button_open_check_operations(self):
-        action = super(l10nLatamAccountPaymentCheck, self.sudo()).button_open_check_operations()
         self.ensure_one()
+        if self.company_id.country_code != "AR":
+            return super().button_open_check_operations()
+
+        action = super(l10nLatamAccountPaymentCheck, self.sudo()).button_open_check_operations()
         operations = self.operation_ids.sorted(lambda r: r.l10n_latam_move_check_ids_operation_date, reverse=True)
         # A check can travel between companies of the same hierarchy (branches), so we keep every
         # operation of the tree instead of only the ones of the company the check currently is in.
@@ -63,8 +66,10 @@ class l10nLatamAccountPaymentCheck(models.Model):
         return action
 
     def _get_last_operation(self):
-        super()._get_last_operation()
         self.ensure_one()
+        if self.company_id.country_code != "AR":
+            return super()._get_last_operation()
+
         return (
             (self.payment_id + self.operation_ids)
             .filtered(lambda x: x.state not in ["draft", "canceled"] and x.l10n_latam_move_check_ids_operation_date)
@@ -87,7 +92,9 @@ class l10nLatamAccountPaymentCheck(models.Model):
 
     def _compute_issue_state(self):
         super()._compute_issue_state()
-        for rec in self.filtered(lambda r: r.payment_method_code == "own_checks"):
+        for rec in self.filtered(
+            lambda check: check.company_id.country_code == "AR" and check.payment_method_code == "own_checks"
+        ):
             account = rec.outstanding_line_id.account_id
             if account and not account.reconcile:
                 rec.issue_state = "debited"

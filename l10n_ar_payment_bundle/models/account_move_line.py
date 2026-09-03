@@ -6,6 +6,9 @@ class AccountMoveLine(models.Model):
 
     def action_register_payment(self, ctx=None):
         action = super().action_register_payment(ctx=ctx)
+        if len(self.company_id) != 1 or not self.company_id.use_payment_pro:
+            return action
+
         # Si el diario por defecto es bundle
         journal = self.env["account.journal"].search(
             [
