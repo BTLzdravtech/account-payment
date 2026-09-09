@@ -59,7 +59,8 @@ class AccountMove(models.Model):
     def pay_now(self):
         for rec in self.filtered(
             lambda x: (
-                x.pay_now_journal_id
+                x.company_id.use_payment_pro
+                and x.pay_now_journal_id
                 and x.state == "posted"
                 and x.payment_state in ("not_paid", "partial")
                 and x.move_type in self._PAY_NOW_TYPE_MAP
@@ -99,12 +100,14 @@ class AccountMove(models.Model):
         self.pay_now_journal_id = False
 
     def button_draft(self):
-        self.filtered(lambda x: x.state == "posted" and x.pay_now_journal_id).write({"pay_now_journal_id": False})
+        self.filtered(lambda x: x.company_id.use_payment_pro and x.state == "posted" and x.pay_now_journal_id).write(
+            {"pay_now_journal_id": False}
+        )
         return super().button_draft()
 
     def _post(self, soft=False):
         res = super()._post(soft=soft)
-        self.pay_now()
+        self.filtered("company_id.use_payment_pro").pay_now()
         return res
 
     def _search_default_journal(self):
