@@ -13,7 +13,8 @@ class AccountChartTemplate(models.AbstractModel):
     _inherit = "account.chart.template"
 
     def _load(self, template_code, company, install_demo, force_create=True):
-        self._create_receiptbooks(company)
+        if company.use_receiptbook:
+            self._create_receiptbooks(company)
         return super()._load(template_code, company, install_demo, force_create)
 
     @api.model

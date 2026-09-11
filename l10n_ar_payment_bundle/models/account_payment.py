@@ -62,10 +62,12 @@ class AccountPayment(models.Model):
         for rec in self:
             rec.show_move_button = bool(rec.link_payment_ids.mapped("move_id"))
 
-    @api.depends("payment_method_line_id")
+    @api.depends("company_id.use_payment_pro", "payment_method_line_id")
     def _compute_is_main_payment(self):
         for rec in self:
-            rec.is_main_payment = rec.payment_method_line_id.payment_method_id.code == "payment_bundle"
+            rec.is_main_payment = (
+                rec.company_id.use_payment_pro and rec.payment_method_line_id.payment_method_id.code == "payment_bundle"
+            )
 
     @api.onchange("company_id", "partner_id")
     def _onchange_company_id(self):
@@ -88,7 +90,11 @@ class AccountPayment(models.Model):
         amount_company_currency_signed para no romper multimoneda.
         """
         for rec in self:
-            if rec.main_payment_id and rec.payment_type != rec.main_payment_id.payment_type:
+            if (
+                rec.company_id.use_payment_pro
+                and rec.main_payment_id
+                and rec.payment_type != rec.main_payment_id.payment_type
+            ):
                 rec.payment_total_signed = -rec.payment_total
             else:
                 rec.payment_total_signed = rec.payment_total
@@ -96,14 +102,15 @@ class AccountPayment(models.Model):
     @api.depends("link_payment_ids.payment_total_signed")
     def _compute_payment_total(self):
         super()._compute_payment_total()
-        for rec in self:
+        for rec in self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment):
             rec.payment_total += sum(rec.link_payment_ids.mapped("payment_total_signed"))
 
     @api.depends("main_payment_id.payment_difference")
     def _compute_to_pay_amount(self):
-        for rec in self.filtered("main_payment_id"):
+        linked_payments = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.main_payment_id)
+        for rec in linked_payments:
             rec.to_pay_amount = rec.main_payment_id.payment_difference
-        super(AccountPayment, self - self.filtered("main_payment_id"))._compute_to_pay_amount()
+        super(AccountPayment, self - linked_payments)._compute_to_pay_amount()
 
     @api.depends("link_payment_ids.payment_total_signed")
     def _compute_link_payments_total(self):
@@ -111,7 +118,7 @@ class AccountPayment(models.Model):
         We added this computed field because we cannot modify counterpart_currency_amount,
         since as it is used into the journal entry.
         """
-        main_payment_ids = self.filtered("is_main_payment")
+        main_payment_ids = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment)
         (self - main_payment_ids).link_payments_total = False
         for rec in main_payment_ids:
             rec.link_payments_total = sum(rec.link_payment_ids.mapped("payment_total_signed"))
@@ -119,10 +126,7 @@ class AccountPayment(models.Model):
     @api.depends("use_payment_pro", "main_payment_id", "is_internal_transfer")
     def _compute_available_journal_ids(self):
         super()._compute_available_journal_ids()
-        for rec in self:
-            if not rec.company_id:
-                continue
-
+        for rec in self.filtered("company_id.use_payment_pro"):
             bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
             journals = rec.available_journal_ids
             # If it's a linked payment remove only the bundle journal (any currency allowed)
@@ -134,7 +138,11 @@ class AccountPayment(models.Model):
     def _compute_destination_journal_domain(self):
         super()._compute_destination_journal_domain()
 
-        for rec in self.filtered(lambda p: p.is_internal_transfer and p.destination_company_id):
+        for rec in self.filtered(
+            lambda payment: payment.company_id.use_payment_pro
+            and payment.is_internal_transfer
+            and payment.destination_company_id
+        ):
             bundle_journal_id = rec.company_id._get_bundle_journal(rec.payment_type)
             if not bundle_journal_id:
                 continue
@@ -145,37 +153,41 @@ class AccountPayment(models.Model):
 
     @api.depends("main_payment_id.to_pay_move_line_ids")
     def _compute_to_pay_move_lines(self):
-        with_main_payments = self.filtered("main_payment_id")
+        with_main_payments = self.filtered(
+            lambda payment: payment.company_id.use_payment_pro and payment.main_payment_id
+        )
         for rec in with_main_payments:
             rec.to_pay_move_line_ids = rec.main_payment_id.to_pay_move_line_ids
         super(AccountPayment, self - with_main_payments)._compute_to_pay_move_lines()
 
     @api.depends("main_payment_id")
     def _compute_l10n_ar_withholding_line_ids(self):
-        with_main_payments = self.filtered("main_payment_id")
+        with_main_payments = self.filtered(
+            lambda payment: payment.company_id.use_payment_pro and payment.main_payment_id
+        )
         for rec in with_main_payments:
             rec.l10n_ar_withholding_line_ids = False
         super(AccountPayment, self - with_main_payments)._compute_l10n_ar_withholding_line_ids()
 
     @api.depends("is_main_payment", "withholdings_amount")
     def _compute_amount(self):
-        main_paments = self.filtered("is_main_payment")
-        main_paments.amount = 0.0
-        super(AccountPayment, self - main_paments)._compute_amount()
+        main_payments = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment)
+        main_payments.amount = 0.0
+        super(AccountPayment, self - main_payments)._compute_amount()
 
     @api.onchange("to_pay_move_line_ids", "is_main_payment")
     def _onchange_to_pay_lines_adjust_amount(self):
         """Para pagos principales del bundle, amount siempre debe ser 0; evita que
         la lógica de account_payment_pro intente ajustar el amount y dispare la
         constraint _check_amount_in_main_payment."""
-        main_payments = self.filtered("is_main_payment")
+        main_payments = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment)
         main_payments.amount = 0
         super(AccountPayment, self - main_payments)._onchange_to_pay_lines_adjust_amount()
 
     @api.onchange("withholdings_amount")
     def _onchange_withholdings(self):
         """dejamos este onchange además del compute_amount porque "le gana" en ejecución y, si cambian retenciones le asignaba un amount"""
-        main_payments = self.filtered("is_main_payment")
+        main_payments = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment)
         main_payments.amount = 0
         super(AccountPayment, self - main_payments)._onchange_withholdings()
 
@@ -184,13 +196,21 @@ class AccountPayment(models.Model):
         super(AccountPayment, self)._compute_counterpart_rate()
         # si tenemos main payment tomamos el counterpart_rate de ahí, no es necesario que el usuario lo ingrese en los pagos linkeados y así evitamos inconsistencias.
         # solo lo podemos hacer si la moneda del pago es en moneda de la cia ya que el rate del "bundle" siempre va a estar definido entre counterpart y moneda de la cia.
-        for rec in self.filtered(lambda x: x.main_payment_id and x.currency_id == x.company_currency_id):
+        for rec in self.filtered(
+            lambda payment: payment.company_id.use_payment_pro
+            and payment.main_payment_id
+            and payment.currency_id == payment.company_currency_id
+        ):
             rec.counterpart_rate = rec.main_payment_id.counterpart_rate
 
     @api.depends("main_payment_id")
     def _compute_accounting_rate(self):
         super(AccountPayment, self)._compute_accounting_rate()
-        for rec in self.filtered(lambda x: x.main_payment_id and x.currency_id == x.counterpart_currency_id):
+        for rec in self.filtered(
+            lambda payment: payment.company_id.use_payment_pro
+            and payment.main_payment_id
+            and payment.currency_id == payment.counterpart_currency_id
+        ):
             # Si B = C en ambos pagos, tomamos la tasa forzada del main como
             # fuente de verdad para mantener counterpart_rate alineado.
             if rec.main_payment_id.counterpart_rate and rec.accounting_rate != rec.main_payment_id.counterpart_rate:
@@ -200,12 +220,13 @@ class AccountPayment(models.Model):
 
     @api.depends("main_payment_id.counterpart_currency_id")
     def _compute_counterpart_currency_id(self):
-        for rec in self.filtered("main_payment_id"):
+        linked_payments = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.main_payment_id)
+        for rec in linked_payments:
             rec.counterpart_currency_id = rec.main_payment_id.counterpart_currency_id
-        super(AccountPayment, self - self.filtered("main_payment_id"))._compute_counterpart_currency_id()
+        super(AccountPayment, self - linked_payments)._compute_counterpart_currency_id()
 
     def _compute_payment_difference(self):
-        linked = self.filtered("main_payment_id")
+        linked = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.main_payment_id)
         for rec in linked:
             # Neteo de los linkeados vía payment_total_signed (una devolución resta, no suma).
             # payment_total viene en B2/destination_currency_id, misma moneda que selected_debt
@@ -238,17 +259,17 @@ class AccountPayment(models.Model):
     def _get_bundle_payment_total(self, payment_bundle):
         # main_payment.payment_total already accumulates all link_payment_ids via
         # _compute_payment_total; summing the full bundle would double-count the links.
-        if self.is_main_payment:
+        if self.company_id.use_payment_pro and self.is_main_payment:
             return self.payment_total
         return super()._get_bundle_payment_total(payment_bundle)
 
     def _get_bundle_imputed_total(self, payment_bundle):
-        if self.is_main_payment:
+        if self.company_id.use_payment_pro and self.is_main_payment:
             return self.matched_amount + self.unmatched_amount
         return super()._get_bundle_imputed_total(payment_bundle)
 
     def _get_payment_bundles(self):
-        main_payments = self.filtered("is_main_payment")
+        main_payments = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment)
         bundles = super(AccountPayment, self - main_payments)._get_payment_bundles()
         for rec in main_payments:
             bundles[rec.id] += rec + rec.link_payment_ids
@@ -256,49 +277,41 @@ class AccountPayment(models.Model):
 
     def _select_bundle(self, bundles):
         self.ensure_one()
-        if self.is_main_payment:
+        if self.company_id.use_payment_pro and self.is_main_payment:
             return bundles.get(self.id)
         return super()._select_bundle(bundles)
 
     def action_post(self):
-        for rec in self:
-            if rec.link_payment_ids and rec.payment_method_code != "payment_bundle":
-                rec.link_payment_ids.unlink()
-
-            if rec.main_payment_id and not rec.main_payment_id.name:
+        bundle_payments = self.filtered(
+            lambda payment: payment.company_id.use_payment_pro
+            and (payment.is_main_payment or payment.main_payment_id or payment.link_payment_ids)
+        )
+        for payment in bundle_payments:
+            if payment.link_payment_ids and payment.payment_method_code != "payment_bundle":
+                payment.link_payment_ids.unlink()
+            if payment.main_payment_id and not payment.main_payment_id.name:
                 raise ValidationError(_("The main payment must have a name before a linked payment can be posted."))
 
-        self._check_bundle_currency_consistency()
-
-        res = super(AccountPayment, self).action_post()
-        for rec in self:
-            # Determine the starting suffix number based on the highest numeric
-            # suffix already present in linked payment names (e.g. "PAY00003 (2)").
-            existing_names = rec.link_payment_ids.mapped("name")
+        bundle_payments._check_bundle_currency_consistency()
+        res = super().action_post()
+        for payment in bundle_payments:
+            existing_names = payment.link_payment_ids.mapped("name")
             pattern = re.compile(r"\((\d+)\)\s*$")
-            suffix_nums = [int(m.group(1)) for n in existing_names if n for m in [pattern.search(n)] if m]
-            if suffix_nums:
-                starting_suffix = max(suffix_nums)
-            else:
-                # Si no hay sufijos numéricos, arrancamos a partir de la cantidad de nombres no vacíos.
-                starting_suffix = len([n for n in existing_names if n])
-
-            next_num = starting_suffix + 1
-            unnamed_payments = rec.link_payment_ids.filtered(lambda p: not p.name)
-            for payment in unnamed_payments:
-                payment.name = f"{rec.name} ({next_num})"
+            suffix_nums = [
+                int(match.group(1)) for name in existing_names if name for match in [pattern.search(name)] if match
+            ]
+            next_num = max(suffix_nums, default=len([name for name in existing_names if name])) + 1
+            for linked_payment in payment.link_payment_ids.filtered(lambda linked: not linked.name):
+                linked_payment.name = f"{payment.name} ({next_num})"
                 next_num += 1
 
-        draft_linked = self.filtered(lambda x: x.state != "draft").link_payment_ids.filtered(
-            lambda x: x.state == "draft"
+        draft_linked = bundle_payments.filtered(lambda payment: payment.state != "draft").link_payment_ids.filtered(
+            lambda payment: payment.company_id.use_payment_pro and payment.state == "draft"
         )
         if draft_linked:
             draft_linked.action_post()
 
-        # Envío diferido del recibo del main: acá los vinculados ya imputaron, así el
-        # PDF sale con los comprobantes y no "A cuenta" (receiptbook lo saltea en el post).
-        self.filtered("is_main_payment")._send_receiptbook_mail()
-
+        bundle_payments.filtered("is_main_payment")._send_receiptbook_mail()
         return res
 
     def _reconcile_after_post(self):
@@ -334,27 +347,49 @@ class AccountPayment(models.Model):
         return res
 
     def action_draft(self):
-        active_links = self.link_payment_ids.filtered(lambda p: p.state != "cancel")
-        res = super(AccountPayment, self + active_links).action_draft()
-        if self.main_payment_id:
+        bundle_payments = self.filtered(
+            lambda payment: payment.company_id.use_payment_pro
+            and (payment.is_main_payment or payment.main_payment_id or payment.link_payment_ids)
+        )
+        standard_payments = self - bundle_payments
+        result = super(AccountPayment, standard_payments).action_draft() if standard_payments else True
+        active_links = bundle_payments.link_payment_ids.filtered(
+            lambda payment: payment.company_id.use_payment_pro and payment.state != "cancel"
+        )
+        if bundle_payments:
+            result = super(AccountPayment, bundle_payments + active_links).action_draft()
+        if len(bundle_payments) == 1 and bundle_payments.main_payment_id:
             return {
                 "type": "ir.actions.act_window",
                 "res_model": "account.payment",
                 "view_mode": "form",
-                "res_id": self.id,
+                "res_id": bundle_payments.id,
                 "context": self.env.context,
             }
-        return res
+        return result
 
     def action_cancel(self):
-        res = super(AccountPayment, self + self.link_payment_ids).action_cancel()
-        return res
+        bundle_payments = self.filtered(
+            lambda payment: payment.company_id.use_payment_pro
+            and (payment.is_main_payment or payment.main_payment_id or payment.link_payment_ids)
+        )
+        standard_payments = self - bundle_payments
+        result = super(AccountPayment, standard_payments).action_cancel() if standard_payments else True
+        if bundle_payments:
+            result = super(
+                AccountPayment,
+                bundle_payments + bundle_payments.link_payment_ids.filtered("company_id.use_payment_pro"),
+            ).action_cancel()
+        return result
 
     def _bypass_journal_entry(self):
         # Only main bundle payments (is_main_payment, no main_payment_id) without write-off or withholdings skip journal entry.
         # Linked payments and regular payments always create journal entries, including write-off.
         return self.filtered(
-            lambda x: x.is_main_payment and not x.main_payment_id and not (x.write_off_amount or x.withholdings_amount)
+            lambda payment: payment.company_id.use_payment_pro
+            and payment.is_main_payment
+            and not payment.main_payment_id
+            and not (payment.write_off_amount or payment.withholdings_amount)
         )
 
     def _generate_journal_entry(self, write_off_line_vals=None, force_balance=None, line_ids=None):
@@ -366,20 +401,16 @@ class AccountPayment(models.Model):
 
     @api.depends("partner_id", "amount", "date", "payment_type")
     def _compute_duplicate_payment_ids(self):
-        # Delete this when https://github.com/odoo/odoo/pull/210164 is merged
-        # Bypass the duplicate payment check for main payments
-        for rec in self:
-            if rec.main_payment_id:
-                rec.duplicate_payment_ids = False
-            else:
-                super()._compute_duplicate_payment_ids()
+        linked_payments = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.main_payment_id)
+        super(AccountPayment, self - linked_payments)._compute_duplicate_payment_ids()
+        linked_payments.duplicate_payment_ids = False
 
     def button_open_invoices(self):
         """Redirect the user to the invoice(s) paid by this payment.
         :return: An action on account.move.
         """
         self.ensure_one()
-        if self.is_main_payment:
+        if self.company_id.use_payment_pro and self.is_main_payment:
             return (
                 (
                     self.invoice_ids
@@ -399,7 +430,7 @@ class AccountPayment(models.Model):
         :return:    An action on account.move.
         """
         self.ensure_one()
-        if self.is_main_payment:
+        if self.company_id.use_payment_pro and self.is_main_payment:
             action = {
                 "name": _("Paid Bills"),
                 "type": "ir.actions.act_window",
@@ -426,21 +457,20 @@ class AccountPayment(models.Model):
 
     @api.depends()
     def _compute_stat_buttons_from_reconciliation(self):
-        for rec in self:
-            super()._compute_stat_buttons_from_reconciliation()
-            if rec.is_main_payment:
-                linked_payments = rec.link_payment_ids
-                reconciled_invoice_ids = rec.reconciled_invoice_ids | linked_payments.mapped("reconciled_invoice_ids")
-                reconciled_bill_ids = rec.reconciled_bill_ids | linked_payments.mapped("reconciled_bill_ids")
-                rec.reconciled_invoices_count = len(reconciled_invoice_ids)
-                rec.reconciled_bills_count = len(reconciled_bill_ids)
+        super()._compute_stat_buttons_from_reconciliation()
+        for payment in self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment):
+            linked_payments = payment.link_payment_ids
+            reconciled_invoice_ids = payment.reconciled_invoice_ids | linked_payments.mapped("reconciled_invoice_ids")
+            reconciled_bill_ids = payment.reconciled_bill_ids | linked_payments.mapped("reconciled_bill_ids")
+            payment.reconciled_invoices_count = len(reconciled_invoice_ids)
+            payment.reconciled_bills_count = len(reconciled_bill_ids)
 
     def button_open_journal_entry(self):
         """Redirect the user to this payment journal.
         :return:    An action on account.move.
         """
         self.ensure_one()
-        if self.is_main_payment:
+        if self.company_id.use_payment_pro and self.is_main_payment:
             move_ids = self.move_id | self.link_payment_ids.mapped("move_id")
             if len(move_ids) == 1:
                 return move_ids._get_records_action(name=_("Journal Entry"))
@@ -459,26 +489,28 @@ class AccountPayment(models.Model):
     @api.depends()
     def _compute_matched_amounts(self):
         super()._compute_matched_amounts()
-        if self.filtered(lambda x: x.payment_method_line_id.payment_method_id.code == "payment_bundle"):
-            for rec in self.filtered("is_main_payment"):
+        main_payments = self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment)
+        if main_payments:
+            for rec in main_payments:
                 linked_payments = rec.link_payment_ids
                 rec.matched_amount += sum(linked_payments.mapped("matched_amount"))
                 rec.unmatched_amount = abs(rec.payment_total) - rec.matched_amount
 
-            for rec in self - self.filtered("is_main_payment"):
+            for rec in self.filtered("company_id.use_payment_pro") - main_payments:
                 rec.unmatched_amount = 0.0
 
     @api.depends("move_id.line_ids")
     def _compute_matched_move_line_ids(self):
         super()._compute_matched_move_line_ids()
-        for rec in self.filtered("is_main_payment"):
+        for rec in self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment):
             rec.matched_move_line_ids |= rec.link_payment_ids.mapped("matched_move_line_ids")
 
     def _compute_exchange_diff_move_ids(self):
         super()._compute_exchange_diff_move_ids()
-        for rec in self.filtered("is_main_payment"):
+        for rec in self.filtered(lambda payment: payment.company_id.use_payment_pro and payment.is_main_payment):
             rec.exchange_diff_move_ids |= rec.link_payment_ids.mapped("exchange_diff_move_ids")
             rec.exchange_diff_move_count = len(rec.exchange_diff_move_ids)
 
     def _get_mached_payment(self):
-        return super()._get_mached_payment() + self.link_payment_ids.ids
+        linked_payment_ids = self.filtered("company_id.use_payment_pro").link_payment_ids.ids
+        return super()._get_mached_payment() + linked_payment_ids

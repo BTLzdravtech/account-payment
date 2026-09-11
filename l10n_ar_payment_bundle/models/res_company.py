@@ -5,7 +5,12 @@ class ResCompany(models.Model):
     _inherit = "res.company"
 
     def _create_payment_bundle_journal_if_needed(self):
-        companies = self.filtered(lambda c: c.active and c.use_payment_pro and not c.parent_id)
+        companies = self.filtered(
+            lambda company: company.active
+            and company.country_code == "AR"
+            and company.use_payment_pro
+            and not company.parent_id
+        )
         for company in companies:
             if company._get_bundle_journal("inbound"):
                 continue

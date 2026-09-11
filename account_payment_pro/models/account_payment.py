@@ -455,7 +455,7 @@ class AccountPayment(models.Model):
 
     def _compute_amount(self):
         super()._compute_amount()
-        for rec in self:
+        for rec in self.filtered("company_id.use_payment_pro"):
             if rec.currency_id and not rec.currency_id.is_zero(rec.amount - rec.amount_exact):
                 rec.amount_exact = rec.amount
 
@@ -537,7 +537,8 @@ class AccountPayment(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            if "amount" in vals and "amount_exact" not in vals:
+            company = self.env["res.company"].browse(vals.get("company_id")) or self.env.company
+            if company.use_payment_pro and "amount" in vals and "amount_exact" not in vals:
                 vals["amount_exact"] = vals["amount"]
         return super().create(vals_list)
 
@@ -557,27 +558,27 @@ class AccountPayment(models.Model):
         return new_records
 
     def write(self, vals):
-        if "amount" in vals and "amount_exact" not in vals:
-            vals["amount_exact"] = vals["amount"]
-        for rec in self:
-            if rec.company_id.use_payment_pro or (
-                "company_id" in vals and rec.env["res.company"].browse(vals["company_id"]).use_payment_pro
-            ):
-                # Lo siguiente lo evaluamos para evitar la validacion de odoo de
-                # https://github.com/odoo/odoo/blob/b6b90636938ae961c339807ea893cabdede9f549/addons/account/models/account_move.py#L2476
-                # y permitirnos realizar la modificacion del journal.
-                if "journal_id" in vals and rec.journal_id.id != vals["journal_id"]:
-                    # Lo agregamos a este cambio por el siguiente campo agregado en
-                    #  https://github.com/odoo/odoo/commit/da49c9268b3876a0482a5593379c02418e806b61
-                    # De esta forma evitamos el error de asignar un sequence_number de forma random que ademas se estaba recomputando nuevamente,
-                    # volviendo a su valor original.
-                    rec.move_id.quick_edit_mode = True
+        target_company = self.env["res.company"].browse(vals.get("company_id"))
+        payment_pro = self.filtered("company_id.use_payment_pro")
+        if target_company.use_payment_pro:
+            payment_pro = self
+        standard = self - payment_pro
 
-                # Lo siguiente lo agregamos para primero obligarnos a cambiar el journal_id y no la company_id. Una vez cambiado el journal_id
-                # la company_id se cambia correctamente.
-                if "company_id" in vals and "journal_id" in vals:
-                    rec.move_id.journal_id = vals["journal_id"]
-        return super().write(vals)
+        result = True
+        if standard:
+            result = super(AccountPayment, standard).write(vals)
+
+        if payment_pro:
+            payment_pro_vals = dict(vals)
+            if "amount" in payment_pro_vals and "amount_exact" not in payment_pro_vals:
+                payment_pro_vals["amount_exact"] = payment_pro_vals["amount"]
+            for rec in payment_pro:
+                if "journal_id" in payment_pro_vals and rec.journal_id.id != payment_pro_vals["journal_id"]:
+                    rec.move_id.quick_edit_mode = True
+                if "company_id" in payment_pro_vals and "journal_id" in payment_pro_vals:
+                    rec.move_id.journal_id = payment_pro_vals["journal_id"]
+            result = super(AccountPayment, payment_pro).write(payment_pro_vals) and result
+        return result
 
     ##############################
     # desde modelo account.payment
@@ -603,12 +604,14 @@ class AccountPayment(models.Model):
     #             pay.payment_type == 'inbound' else [('outbound_payment_method_line_ids', '!=', False)]
     #         pay.available_journal_ids = journals.filtered_domain(filtered_domain)
 
-    # agreamos depends de company para que re calcule los diarios disponibles
+    # Recompute journals in the payment company only for Payment Pro companies.
     @api.depends("company_id")
     def _compute_available_journal_ids(self):
-        if self.company_id:
-            self = self.with_company(self.company_id.id)
-        super(AccountPayment, self)._compute_available_journal_ids()
+        standard = self.filtered(lambda payment: not payment.company_id.use_payment_pro)
+        if standard:
+            super(AccountPayment, standard)._compute_available_journal_ids()
+        for payment in self - standard:
+            super(AccountPayment, payment.with_company(payment.company_id))._compute_available_journal_ids()
 
     @api.depends("amount", "amount_exact", "counterpart_rate", "counterpart_currency_id", "currency_id")
     def _compute_counterpart_currency_amount(self):
@@ -678,21 +681,11 @@ class AccountPayment(models.Model):
 
     @api.depends("to_pay_move_line_ids")
     def _compute_destination_account_id(self):
-        """
-        If we are paying a payment gorup with paylines, we use account
-        of lines that are going to be paid
-        """
-        for rec in self:
+        super()._compute_destination_account_id()
+        for rec in self.filtered("company_id.use_payment_pro"):
             to_pay_account = rec.to_pay_move_line_ids.mapped("account_id")
             if to_pay_account:
-                # tomamos la primer si hay mas de una, luego en el post si la deuda se intenta conciliar odoo
-                # devuelve error. No lo protegemos acá por estas razones:
-                # 1. el boton add all no se podria usar porque ya hace un write y el usuario deberia elegir a mano los apuntes
-                # 2. le vamos a dar error al usuario en algunos casos sin que sea necesario ya que luego, si el importe es menor
-                # no llega a intentar conciliarse con est epago
                 rec.destination_account_id = to_pay_account[0]
-            else:
-                super(AccountPayment, rec)._compute_destination_account_id()
 
     def _prepare_move_lines_per_type(self, write_off_line_vals=None, force_balance=None):
         """La cotización baja como `force_balance` y las líneas las arma quien corresponda.
@@ -1240,8 +1233,9 @@ class AccountPayment(models.Model):
 
     def action_post(self):
         res = super().action_post()
-        self._check_to_pay_lines_account()
-        self._reconcile_after_post()
+        payment_pro = self.filtered("company_id.use_payment_pro")
+        payment_pro._check_to_pay_lines_account()
+        payment_pro._reconcile_after_post()
         return res
 
     def _get_mached_payment(self):
@@ -1290,35 +1284,6 @@ class AccountPayment(models.Model):
                 {"matched_payment_ids": self._get_mached_payment()}
             )
         return super().web_read(specification)
-
-    @api.depends("journal_id")
-    def _compute_available_partner_bank_ids(self):
-        super()._compute_available_partner_bank_ids()
-
-    ### FIX RELATIVO A https://github.com/odoo/odoo/pull/212762
-    # evitamos agregar pr de odoo, lo hacemos en pay pro que es donde lo necesitamos
-    # hasta 18 lo tenemos como pr agregado en odoo
-    ###
-    # En Odoo 19, get_depends() recorre TODO el MRO via resolve_mro() y acumula _depends
-    # de cada clase. Ni @api.depends() vacío ni asignar func._depends = () en la función
-    # logran anular los depends del padre porque el padre sigue siendo procesado.
-    # La única forma de cortocircuitar resolve_mro es declarar depends=[] en la definición
-    # del campo: cuando field._depends is not None, get_depends() retorna inmediatamente
-    # sin llamar a resolve_mro().
-    company_id = fields.Many2one(depends=[])
-
-    @api.onchange("journal_id")
-    def _onchange_journal_id_company_id(self):
-        self._compute_company_id()
-
-    # sugerencia de copilot, pero como hasta 18 no lo tenemos, por ahora no implementamos
-    # def write(self, vals):
-    #     # Forzar recompute solo cuando journal_id cambia en write masivo si es necesario
-    #     if 'journal_id' in vals:
-    #         self = self.with_context(force_company_recompute=True)
-    #     return super().write(vals)
-
-    ### FIN FIX RELATIVO A
 
     @api.constrains("journal_id", "move_id")
     def _check_payment_move_journal_consistency(self):

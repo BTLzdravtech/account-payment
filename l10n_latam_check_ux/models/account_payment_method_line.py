@@ -7,7 +7,7 @@ class AccountPaymentMethodLine(models.Model):
 
     def unlink(self):
         """Prevenir eliminación si hay cheques pendientes asociados."""
-        for rec in self:
+        for rec in self.filtered(lambda line: line.journal_id.company_id.country_code == "AR"):
             if rec.code in ["new_third_party_checks", "own_checks", "issued_checks"]:
                 checks = (
                     self.env["l10n_latam.check"]
