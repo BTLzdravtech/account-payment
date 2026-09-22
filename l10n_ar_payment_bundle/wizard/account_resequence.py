@@ -8,7 +8,7 @@ class AccountResequenceWizard(models.TransientModel):
     @api.model
     def default_get(self, fields):
         move_ids = self.env["account.move"].browse(self.env.context.get("active_ids", []))
-        if any(move_ids.payment_ids.main_payment_id):
+        if any(move_ids.filtered("company_id.use_payment_pro").payment_ids.main_payment_id):
             raise UserError(
                 _("You cannot resequence moves linked to a bundle payment. Please resequence the payment instead.")
             )

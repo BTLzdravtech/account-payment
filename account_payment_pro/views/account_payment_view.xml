@@ -249,9 +249,13 @@
     <field name="mode">primary</field>
     <field name="inherit_id" ref="account_payment_pro.view_move_line_tree"/>
     <field name="arch" type="xml">
-        <!-- por ahora, cuando estamos viendo info de lo pagado, no mostamos residual actualizado para no confundir con tantos importes -->
-        <field name="amount_residual_currency" position="replace"/>
-        <field name="amount_residual" position="replace">
+        <field name="amount_residual_currency" position="attributes">
+            <attribute name="column_invisible">True</attribute>
+        </field>
+        <field name="amount_residual" position="attributes">
+            <attribute name="column_invisible">True</attribute>
+        </field>
+        <field name="amount_residual" position="after">
             <field name="payment_matched_amount" string="Paid Amount" sum="Total"/>
             <field name="payment_matched_currency_id" column_invisible="True"/>
         </field>

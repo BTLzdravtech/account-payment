@@ -1,4 +1,10 @@
-from odoo import models
+from odoo import fields, models
+
+
+class AccountMove(models.Model):
+    _inherit = "account.move"
+
+    is_payment_pro_company = fields.Boolean(related="company_id.use_payment_pro")
 
 
 class AccountMoveLine(models.Model):

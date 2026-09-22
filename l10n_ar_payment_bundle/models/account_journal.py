@@ -22,9 +22,18 @@ class AccountJournal(models.Model):
     def create(self, vals_list):
         journals = super().create(vals_list)
         if bundle_journals := journals.filtered(
-            lambda x: (
-                any(line.payment_method_id.code == "payment_bundle" for line in x.inbound_payment_method_line_ids)
-                or any(line.payment_method_id.code == "payment_bundle" for line in x.outbound_payment_method_line_ids)
+            lambda journal: (
+                journal.company_id.use_payment_pro
+                and (
+                    any(
+                        line.payment_method_id.code == "payment_bundle"
+                        for line in journal.inbound_payment_method_line_ids
+                    )
+                    or any(
+                        line.payment_method_id.code == "payment_bundle"
+                        for line in journal.outbound_payment_method_line_ids
+                    )
+                )
             )
         ):
             for journal in bundle_journals:
@@ -36,7 +45,9 @@ class AccountJournal(models.Model):
 
     def write(self, vals):
         res = super().write(vals)
-        if "inbound_payment_method_line_ids" in vals or "outbound_payment_method_line_ids" in vals:
+        if self.filtered("company_id.use_payment_pro") and (
+            "inbound_payment_method_line_ids" in vals or "outbound_payment_method_line_ids" in vals
+        ):
             self.env.registry.clear_cache()
         return res
 

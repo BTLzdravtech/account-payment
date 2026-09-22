@@ -15,7 +15,11 @@ class AccountMove(models.Model):
         Para esto creamos campo related stored a receiptbook_id de manera de que un asiento sepa si fue creado
         o no desde un payment group
         """
-        if self.journal_id.type in ("cash", "bank", "credit") and not self.receiptbook_id:
+        if (
+            self.company_id.use_receiptbook
+            and self.journal_id.type in ("cash", "bank", "credit")
+            and not self.receiptbook_id
+        ):
             where_string, param = super(
                 AccountMove, self.with_context(without_receiptbook_id=True)
             )._get_last_sequence_domain(relaxed)
@@ -35,7 +39,8 @@ class AccountMove(models.Model):
         super()._compute_name()
         for move in self.filtered(
             lambda x: (
-                x.origin_payment_id.receiptbook_id
+                x.company_id.use_receiptbook
+                and x.origin_payment_id.receiptbook_id
                 and (
                     x.state == "draft"
                     or x.origin_payment_id.state == "draft"
@@ -47,13 +52,15 @@ class AccountMove(models.Model):
 
     @api.depends("origin_payment_id.receiptbook_id")
     def _compute_l10n_latam_document_type(self):
-        receiptbook_payments = self.filtered(lambda x: x.origin_payment_id.receiptbook_id)
+        receiptbook_payments = self.filtered(
+            lambda move: move.company_id.use_receiptbook and move.origin_payment_id.receiptbook_id
+        )
         super(AccountMove, self - receiptbook_payments)._compute_l10n_latam_document_type()
 
     def _must_check_constrains_date_sequence(self):
         # OVERRIDES sequence.mixin to skip date sequence check for receiptbook moves
         self.ensure_one()
-        if self.receiptbook_id:
+        if self.company_id.use_receiptbook and self.receiptbook_id:
             return False
         return super()._must_check_constrains_date_sequence()
 
@@ -63,7 +70,7 @@ class AccountMove(models.Model):
         # talonario se numeran por receiptbook (cada uno con su ``ir.sequence``),
         # así que esa lógica journal-based da falsos positivos. Acotamos la
         # detección de huecos al receiptbook + prefijo.
-        receiptbook_moves = self.filtered(lambda m: m.receiptbook_id)
+        receiptbook_moves = self.filtered(lambda move: move.company_id.use_receiptbook and move.receiptbook_id)
         if receiptbook_moves:
             receiptbook_moves._update_receiptbook_made_sequence_gap()
         if other_moves := self - receiptbook_moves:

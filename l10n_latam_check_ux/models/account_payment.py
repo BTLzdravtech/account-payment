@@ -20,7 +20,7 @@ class AccountPayment(models.Model):
         import_file = self.env.context.get("import_file")
         if not import_file:
             return
-        for rec in self:
+        for rec in self.filtered(lambda payment: payment.company_id.country_code == "AR"):
             # Only validate if the payment has checks associated and state is changing
             checks = rec.l10n_latam_move_check_ids | rec.l10n_latam_new_check_ids
             for check in checks:
@@ -32,12 +32,9 @@ class AccountPayment(models.Model):
                     )
 
     def action_post(self):
-        # nosotros queremos bloquear tmb nros de cheques de terceros que sea unicos
-        # para esto chequeamos el campo computado de warnings que ya lo tiene incorporado
-        # NOTA: no mandamos todos los warnings de "self" juntos porque podría ser muy verbose (por ej. la
-        # leyenda de cheques duplicados en un mismo payment group apareceria varias veces si el cheque está repetido
-        # en el mismo payment group)
-        for rec in self:
+        # We do not collect every warning because the same check can be repeated in a payment group.
+        payments = self.filtered(lambda payment: payment.company_id.country_code == "AR")
+        for rec in payments:
             if rec.l10n_latam_check_warning_msg:
                 raise ValidationError("%s" % rec.l10n_latam_check_warning_msg)
             rec.l10n_latam_move_check_ids_operation_date = rec.create_date if rec.create_date else fields.Datetime.now()
@@ -46,7 +43,7 @@ class AccountPayment(models.Model):
         # batch de confirmación (ej: bundle confirma dos pagos hijos en draft que tienen
         # el mismo cheque, sin que ninguno lo haya bloqueado antes de postear).
         seen = self.env["l10n_latam.check"]
-        for rec in self.filtered("l10n_latam_move_check_ids"):
+        for rec in payments.filtered("l10n_latam_move_check_ids"):
             repeated = rec.l10n_latam_move_check_ids & seen
             if repeated:
                 raise ValidationError(
@@ -55,7 +52,7 @@ class AccountPayment(models.Model):
                 )
             seen |= rec.l10n_latam_move_check_ids
 
-        super().action_post()
+        return super().action_post()
 
     def _create_paired_internal_transfer_payment(self):
         """
@@ -66,11 +63,10 @@ class AccountPayment(models.Model):
         2. On the paired transfer set the l10n_latam_check_id field, this field is needed for the
         l10n_latam_check_operation_ids and also for some warnings and constrains.
         """
-        # We evalute if the transfer is creating from de wizard transfer check button with check_deposit_transfer context,
-        # in order to not duplicate the transfer when creating the deposit of the check from the wizard.
-        # Who already create both payments at once in the _create_payments method.)
+        # Avoid duplicate transfers created by the deposit-check wizard.
+        payments = self.filtered(lambda payment: payment.company_id.country_code == "AR")
         if not self.env.context.get("check_deposit_transfer"):
-            third_party_checks = self.filtered(
+            third_party_checks = payments.filtered(
                 lambda x: (
                     x.payment_method_line_id.code
                     in ["in_third_party_checks", "out_third_party_checks", "return_third_party_checks"]
@@ -126,7 +122,8 @@ class AccountPayment(models.Model):
                 )
                 if correct_dest_payment_method:
                     rec.paired_internal_transfer_payment_id.payment_method_line_id = correct_dest_payment_method
-            super(AccountPayment, self - third_party_checks)._create_paired_internal_transfer_payment()
+            return super(AccountPayment, self - third_party_checks)._create_paired_internal_transfer_payment()
+        return super(AccountPayment, self - payments)._create_paired_internal_transfer_payment()
 
     def _get_reconciled_checks_error(self):
         """No bloquear los cheques propios con débito automático.
@@ -139,15 +136,18 @@ class AccountPayment(models.Model):
         este caso no aplica y el pago se puede restablecer a borrador o cancelar.
         """
         payments_with_reconciled_checks = self.filtered(
-            lambda payment: payment.l10n_latam_new_check_ids.filtered(
-                lambda check: check.issue_state in ("debited", "voided")
-                and check.outstanding_line_id.account_id.reconcile
+            lambda payment: (
+                payment.company_id.country_code == "AR"
+                and payment.l10n_latam_new_check_ids.filtered(
+                    lambda check: check.issue_state in ("debited", "voided")
+                    and check.outstanding_line_id.account_id.reconcile
+                )
             )
         )
-        return super(AccountPayment, payments_with_reconciled_checks)._get_reconciled_checks_error()
+        return super(AccountPayment, self - payments_with_reconciled_checks)._get_reconciled_checks_error()
 
     def action_draft(self):
-        for rec in self:
+        for rec in self.filtered(lambda payment: payment.company_id.country_code == "AR"):
             for check in rec.mapped("l10n_latam_move_check_ids") + rec.mapped("l10n_latam_new_check_ids"):
                 last_operation = check._get_last_operation()
                 if rec != last_operation:
@@ -155,10 +155,13 @@ class AccountPayment(models.Model):
                         "You cannot reset this operation to draft because it is not the last operation for the checks."
                     )
 
-        super().action_draft()
+        return super().action_draft()
 
     def _is_latam_check_transfer(self):
         self.ensure_one()
+        if self.company_id.country_code != "AR":
+            return super()._is_latam_check_transfer()
+
         return super()._is_latam_check_transfer() or (
             self.is_internal_transfer
             and bool(self.l10n_latam_move_check_ids)
@@ -171,7 +174,8 @@ class AccountPayment(models.Model):
         that are no longer in the (new) destination journal."""
         for rec in self.filtered(
             lambda x: (
-                x.is_internal_transfer
+                x.company_id.country_code == "AR"
+                and x.is_internal_transfer
                 and x.payment_type == "inbound"
                 and x.payment_method_code == "in_third_party_checks"
                 and x.l10n_latam_move_check_ids
@@ -198,7 +202,8 @@ class AccountPayment(models.Model):
         """
         for rec in self.filtered(
             lambda x: (
-                x.state == "draft"
+                x.company_id.country_code == "AR"
+                and x.state == "draft"
                 and x.is_internal_transfer
                 and x.payment_type == "inbound"
                 and x.payment_method_line_id.code == "in_third_party_checks"
@@ -224,7 +229,7 @@ class AccountPayment(models.Model):
         - Check outbound methods cannot be paired destinations
         """
         vals = super()._prepare_paired_payment_values()
-        if not self.is_internal_transfer:
+        if self.company_id.country_code != "AR" or not self.is_internal_transfer:
             return vals
 
         paired_method_code = (
@@ -291,7 +296,9 @@ class AccountPayment(models.Model):
 
         El resto de los pagos ni pasa por acá.
         """
-        per_check = self.filtered(lambda pay: pay._has_counterpart_amount_per_check())
+        per_check = self.filtered(
+            lambda payment: payment.company_id.country_code == "AR" and payment._has_counterpart_amount_per_check()
+        )
         super(AccountPayment, self - per_check)._compute_counterpart_currency_amount()
         for pay in per_check:
             rate = (pay.amount_exact or pay.amount) / pay.accounting_rate / pay.amount
@@ -309,7 +316,7 @@ class AccountPayment(models.Model):
         aplicarlo correría el `amount` del pago y los cheques dejarían de sumarlo (ticket 123832).
         """
         for pay in self:
-            if pay._has_counterpart_amount_per_check():
+            if pay.company_id.country_code == "AR" and pay._has_counterpart_amount_per_check():
                 continue
             super(AccountPayment, pay)._inverse_counterpart_currency_amount()
 
@@ -317,7 +324,8 @@ class AccountPayment(models.Model):
         """Si el importe de la contrapartida lo arma el reparto cheque por cheque."""
         self.ensure_one()
         return bool(
-            self.counterpart_currency_id == self.company_currency_id
+            self.company_id.country_code == "AR"
+            and self.counterpart_currency_id == self.company_currency_id
             and self.accounting_rate
             and self.amount
             and len(self.l10n_latam_new_check_ids | self.l10n_latam_move_check_ids) > 1
@@ -346,7 +354,7 @@ class AccountPayment(models.Model):
         decidiendo dónde cae el resto del redondeo, así que no es un borrado a ciegas.
         """
         lines = super()._prepare_move_liquidity_lines(default_values)
-        if not lines[0].get("l10n_latam_check_ids") or not self.amount:
+        if self.company_id.country_code != "AR" or not lines[0].get("l10n_latam_check_ids") or not self.amount:
             # no las armó `l10n_latam_check`: no hay una línea por cheque que revaluar
             return lines
 
@@ -375,7 +383,7 @@ class AccountPayment(models.Model):
         """
         res = super()._prepare_move_lines_per_type(write_off_line_vals=write_off_line_vals, force_balance=force_balance)
         liquidity_lines = res["liquidity_lines"]
-        if not liquidity_lines[0].get("l10n_latam_check_ids"):
+        if self.company_id.country_code != "AR" or not liquidity_lines[0].get("l10n_latam_check_ids"):
             return res
         counterpart_lines = res["counterpart_lines"]
         if not counterpart_lines:

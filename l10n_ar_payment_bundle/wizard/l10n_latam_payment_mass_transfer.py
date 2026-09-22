@@ -23,13 +23,13 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
                 ("company_id", "=", rec.company_id.id),
             ]
 
-            # Exclude both inbound and outbound bundle journals
-            bundle_journal_inbound = rec.company_id._get_bundle_journal("inbound")
-            bundle_journal_outbound = rec.company_id._get_bundle_journal("outbound")
+            if rec.company_id.use_payment_pro:
+                bundle_journal_inbound = rec.company_id._get_bundle_journal("inbound")
+                bundle_journal_outbound = rec.company_id._get_bundle_journal("outbound")
 
-            if bundle_journal_inbound:
-                base_domain.append(("id", "!=", bundle_journal_inbound))
-            if bundle_journal_outbound:
-                base_domain.append(("id", "!=", bundle_journal_outbound))
+                if bundle_journal_inbound:
+                    base_domain.append(("id", "!=", bundle_journal_inbound))
+                if bundle_journal_outbound:
+                    base_domain.append(("id", "!=", bundle_journal_outbound))
 
             rec.destination_journal_domain = base_domain
