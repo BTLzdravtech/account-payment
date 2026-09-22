@@ -7,8 +7,7 @@ class AccountAccount(models.Model):
     def write(self, vals):
         res = super().write(vals)
         accounts = self.filtered(
-            lambda account: account.company_ids
-            and all(company.country_code == "AR" for company in account.company_ids)
+            lambda account: account.company_ids and all(company.country_code == "AR" for company in account.company_ids)
         )
         if "reconcile" in vals and accounts:
             checks = self.env["l10n_latam.check"].search(
