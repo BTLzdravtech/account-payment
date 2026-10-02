@@ -37,10 +37,10 @@
             </button>
         </xpath>
 
-        <xpath expr="//field[@name='partner_id'][@string='Customer']" position="attributes">
+        <xpath expr="(//field[@name='partner_id'])[1]" position="attributes">
             <attribute name="readonly">state != 'draft' or context.get('default_company_id')</attribute>
         </xpath>
-        <xpath expr="//field[@name='partner_id'][@string='Vendor']" position="attributes">
+        <xpath expr="(//field[@name='partner_id'])[2]" position="attributes">
             <attribute name="readonly">state != 'draft' or context.get('default_company_id')</attribute>
         </xpath>
 

@@ -10,10 +10,10 @@
                 <field name="is_payment_pro_company" invisible="1"/>
             </xpath>
             <button id="account_invoice_payment_btn" position="attributes">
-                <attribute name="invisible" add="or is_payment_pro_company" separator=" "/>
+                <attribute name="invisible" add="is_payment_pro_company" separator=" or "/>
             </button>
             <button id="account_invoice_payment_secondary_btn" position="attributes">
-                <attribute name="invisible" add="or is_payment_pro_company" separator=" "/>
+                <attribute name="invisible" add="is_payment_pro_company" separator=" or "/>
             </button>
             <button id="account_invoice_payment_btn" position="after">
                 <button name="action_force_register_payment"
