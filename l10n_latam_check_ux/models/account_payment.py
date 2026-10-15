@@ -47,7 +47,10 @@ class AccountPayment(models.Model):
             # keeps showing as available in the portfolio.
             # Recomputing it on every confirmation does not reorder anything, because action_draft
             # only lets the last operation of the chain go back to draft.
-            rec.l10n_latam_move_check_ids_operation_date = rec._get_check_operation_date()
+            # action_post can also run on payments that are already confirmed (e.g. the list view
+            # confirm action), so only drafts get a new date.
+            if rec.state == "draft":
+                rec.l10n_latam_move_check_ids_operation_date = rec._get_check_operation_date()
         # The core unlinks the checks of payments whose method is not for checks, and a bank journal
         # cannot have a checks method. The inbound leg of a check transfer (its paired payment moves
         # the same checks) keeps them anyway, on every confirmation and not only on the wizard one.
@@ -81,6 +84,25 @@ class AccountPayment(models.Model):
             if last_operation_date:
                 operation_date = max(operation_date, last_operation_date + timedelta(seconds=1))
         return operation_date
+
+    def _is_check_transfer(self):
+        return self.payment_method_code in ("out_third_party_checks", "return_third_party_checks")
+
+    @api.depends("payment_method_line_id")
+    def _compute_available_destination_payment_method_line_ids(self):
+        super()._compute_available_destination_payment_method_line_ids()
+        for pay in self.filtered("available_destination_payment_method_line_ids"):
+            if pay._is_check_transfer():
+                pay.available_destination_payment_method_line_ids = (
+                    pay.destination_journal_id._get_check_transfer_destination_lines()
+                )
+            else:
+                # a transfer never brings new checks: with that line the paired payment ends up with amount 0
+                pay.available_destination_payment_method_line_ids = (
+                    pay.available_destination_payment_method_line_ids.filtered(
+                        lambda x: x.code != "new_third_party_checks"
+                    )
+                )
 
     def _create_paired_internal_transfer_payment(self):
         """
