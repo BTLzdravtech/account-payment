@@ -43,8 +43,9 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
     @api.depends("destination_journal_id")
     def _compute_available_destination_payment_method_line_ids(self):
         for wizard in self:
+            journal = wizard.destination_journal_id
             wizard.available_destination_payment_method_line_ids = (
-                wizard.destination_journal_id._get_available_payment_method_lines("inbound")
+                journal._get_check_transfer_destination_lines() if journal else False
             )
 
     @api.depends("available_destination_payment_method_line_ids")
@@ -54,10 +55,19 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
             # an explicit choice is kept as long as it is still available on the destination journal
             if wizard.destination_payment_method_line_id in available_lines:
                 continue
-            # the default replicates the current behaviour: third party checks when the journal has it
-            wizard.destination_payment_method_line_id = (
-                available_lines.filtered(lambda x: x.code == "in_third_party_checks")[:1] or available_lines[:1]
-            )
+            wizard.destination_payment_method_line_id = available_lines[:1]
+
+    @api.constrains("destination_payment_method_line_id", "destination_journal_id")
+    def _check_destination_payment_method_line_id(self):
+        for wizard in self.filtered("destination_payment_method_line_id"):
+            if wizard.destination_payment_method_line_id not in wizard.available_destination_payment_method_line_ids:
+                raise ValidationError(
+                    _(
+                        "The destination payment method %(method)s cannot receive checks on the destination journal %(journal)s.",
+                        method=wizard.destination_payment_method_line_id.name,
+                        journal=wizard.destination_journal_id.name,
+                    )
+                )
 
     def _create_payments(self):
         if self.destination_journal_id.company_id != self.journal_id.company_id:
@@ -130,13 +140,7 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
             }
         )
 
-        if dest_payment_method.code == "in_third_party_checks":
-            inbound_payment.action_post()
-        else:
-            # In case the journal is not part of the third party check, when posting the move we remove the checks
-            # when the payment method line is not for checks, but in this case, we don't want to remove it so that
-            # the operation_ids is filled with the two payments
-            inbound_payment.with_context(l10n_ar_skip_remove_check=True).action_post()
+        inbound_payment.action_post()
 
         outbound_payment.paired_internal_transfer_payment_id = inbound_payment.id
 
@@ -213,13 +217,7 @@ class L10nLatamPaymentMassTransfer(models.TransientModel):
             if dest_payment_method:
                 inbound_payment.payment_method_line_id = dest_payment_method
 
-            if dest_payment_method.code == "in_third_party_checks":
-                inbound_payment.action_post()
-            else:
-                # In case the journal is not part of the third party check, when posting the move we remove the checks
-                # when the payment method line is not for checks, but in this case, we don't want to remove it so that
-                # the operation_ids is filled with the two payments
-                inbound_payment.with_context(l10n_ar_skip_remove_check=True).action_post()
+            inbound_payment.action_post()
 
             body_inbound = _("This payment has been created from: ") + outbound_payment._get_html_link()
             inbound_payment.message_post(body=body_inbound)

@@ -62,7 +62,24 @@ class AccountPayment(models.Model):
                 )
             seen |= rec.l10n_latam_move_check_ids
 
-        super().action_post()
+        # The core unlinks the checks of payments whose method is not for checks, and a bank journal
+        # cannot have a checks method. The inbound leg of a check transfer (its paired payment moves
+        # the same checks) keeps them anyway, on every confirmation and not only on the wizard one.
+        # A payment that kept stale checks after a method change has no such paired payment.
+        # The inbound legs go last: posting one moves the check to its journal, and an outbound leg
+        # posted in the same batch would then fail its "check still in journal" validation.
+        inbound_legs = self.filtered(
+            lambda x: (
+                x.payment_type == "inbound"
+                and x.l10n_latam_move_check_ids
+                and x.l10n_latam_move_check_ids == x.paired_internal_transfer_payment_id.l10n_latam_move_check_ids
+            )
+        )
+        others = self - inbound_legs
+        if others:
+            super(AccountPayment, others).action_post()
+        if inbound_legs:
+            super(AccountPayment, inbound_legs.with_context(l10n_ar_skip_remove_check=True)).action_post()
 
     def _get_check_operation_date(self):
         """Confirmation date that leaves this payment last in the chain of its checks.
@@ -78,6 +95,25 @@ class AccountPayment(models.Model):
             if last_operation_date:
                 operation_date = max(operation_date, last_operation_date + timedelta(seconds=1))
         return operation_date
+
+    def _is_check_transfer(self):
+        return self.payment_method_code in ("out_third_party_checks", "return_third_party_checks")
+
+    @api.depends("payment_method_line_id")
+    def _compute_available_destination_payment_method_line_ids(self):
+        super()._compute_available_destination_payment_method_line_ids()
+        for pay in self.filtered("available_destination_payment_method_line_ids"):
+            if pay._is_check_transfer():
+                pay.available_destination_payment_method_line_ids = (
+                    pay.destination_journal_id._get_check_transfer_destination_lines()
+                )
+            else:
+                # a transfer never brings new checks: with that line the paired payment ends up with amount 0
+                pay.available_destination_payment_method_line_ids = (
+                    pay.available_destination_payment_method_line_ids.filtered(
+                        lambda x: x.code != "new_third_party_checks"
+                    )
+                )
 
     def _create_paired_internal_transfer_payment(self):
         """
@@ -236,11 +272,12 @@ class AccountPayment(models.Model):
                 )
 
     def _l10n_latam_check_liquidity_lines(self):
-        """Una línea de liquidez por cheque, con su nominal, su vencimiento y su link (tarea 70884).
+        """Una línea de liquidez por cheque, con su nominal, su vencimiento y su link.
 
-        Relocaliza lo que hace `l10n_latam_check` cuando la imagen mergea el PR odoo#248741, para
-        que el asiento salga igual con un core sin parchear. El balance queda a la cotización del
-        pago; la revaluación de abajo lo ajusta a la del asiento.
+        Cubre lo que `l10n_latam_check` no hace: un core anterior a odoo/odoo@d85e16a arma una sola
+        línea, y uno posterior no vincula los cheques de terceros, que acá siguen vinculados porque
+        `outstanding_line_id` lo leen reportes y wizards. El balance queda a la cotización del pago;
+        la revaluación de `_prepare_move_liquidity_lines` lo ajusta a la del asiento.
         """
         check_suffix = "".join([item[1] for item in self._get_aml_default_display_name_list()])
         line_common_vals = {
@@ -266,12 +303,21 @@ class AccountPayment(models.Model):
         return liquidity_vals
 
     def _l10n_latam_check_split_move(self):
-        """No-op: las líneas de liquidez de arriba reemplazan al split move."""
+        """No-op: las líneas de liquidez de arriba reemplazan al split move.
+
+        Se mantiene para la comunidad, por si usan un core anterior a odoo/odoo@d85e16a. En Adhoc no
+        hace falta. Borrar en 20.0.
+        """
         return
 
     def _l10n_latam_check_unlink_split_move(self):
-        """Solo desarma el split move de los pagos posteados antes de este cambio: si no queda
-        posteado y huérfano, con el importe del cheque en la cuenta outstanding."""
+        """Reemplaza al core sin llamar a super.
+
+        El core le borra ``outstanding_line_id`` al cheque cuya línea está en el asiento del pago, y
+        con una línea por cheque esa es siempre su línea: al volver a confirmar quedaría desvinculado.
+        Acá se conserva. Lo único que se desarma es el split move de los pagos confirmados con el
+        esquema anterior, que si no queda confirmado y huérfano con el importe en la cuenta outstanding.
+        """
         self.ensure_one()
         for check in self.l10n_latam_new_check_ids:
             if not check.outstanding_line_id or self.move_id == check.outstanding_line_id.move_id:
@@ -415,20 +461,19 @@ class AccountPayment(models.Model):
         Se deduce en vez de llamar a `_convert` por línea justamente para honrar el balance que llegó,
         venga de la fecha del pago o forzado, y para no pagar una consulta de cotización por cheque.
 
-        El origen está en `l10n_latam_check._prepare_move_liquidity_lines`, que NO es código de
-        odoo/odoo 19.0: llega por el PR odoo#248741 (abierto, de Adhoc) que nuestra imagen mergea.
-        El arreglo definitivo va ahí; mientras ese PR siga abierto, esto lo cubre desde afuera. Ojo al
-        limpiarlo: el día que el origen respete el balance que entrega, esto queda inocuo pero sigue
-        decidiendo dónde cae el resto del redondeo, así que no es un borrado a ciegas.
+        El origen está en `l10n_latam_check._prepare_move_liquidity_lines`, que entró a odoo/odoo
+        19.0 con d85e16a y sigue convirtiendo por la fecha de cada cheque. Ojo al limpiarlo: el día
+        que el origen respete el balance que entrega, esto queda inocuo pero sigue decidiendo dónde
+        cae el resto del redondeo, así que no es un borrado a ciegas.
         """
         lines = super()._prepare_move_liquidity_lines(default_values)
-        if not lines[0].get("l10n_latam_check_ids") and (
-            self.l10n_latam_new_check_ids | self.l10n_latam_move_check_ids
-        ):
-            # core sin parchear: las armamos nosotros (tarea 70884)
+        checks = self.l10n_latam_new_check_ids | self.l10n_latam_move_check_ids
+        if not checks:
+            return lines
+        if len(lines) != len(checks) or not all(line.get("l10n_latam_check_ids") for line in lines):
+            # core anterior a d85e16a (una sola línea) o cheques de terceros sin vincular
             lines = self._l10n_latam_check_liquidity_lines()
-        if not lines[0].get("l10n_latam_check_ids") or not self.amount:
-            # no hay una línea por cheque que revaluar
+        if not self.amount:
             return lines
 
         balance = default_values["balance"]
