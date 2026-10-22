@@ -1054,6 +1054,11 @@ class AccountPayment(models.Model):
             counterpart = self.counterpart_rate or 1.0
             return self.payment_difference / counterpart if counterpart else self.payment_difference
 
+    def action_amount_from_checks(self):
+        """Set amount back to the sum of the checks."""
+        for rec in self.filtered(lambda x: x.state == "draft" and x._is_latam_check_payment()):
+            rec.amount = sum(rec._get_latam_checks().mapped("amount"))
+
     def action_adjust_amount_for_difference(self):
         """Ajusta amount para que payment_difference quede en cero."""
         for rec in self:
@@ -1275,9 +1280,12 @@ class AccountPayment(models.Model):
                 (counterpart_aml + (debt_aml)).reconcile()
 
     def action_post(self):
-        res = super().action_post()
-        self._check_to_pay_lines_account()
-        self._reconcile_after_post()
+        # The list view "Post Payments" action calls this on every selected payment, and the core sets
+        # the ones with a cash outstanding account to paid whatever their state. Canceled ones are skipped.
+        to_post = self.filtered(lambda x: x.state != "canceled")
+        res = super(AccountPayment, to_post).action_post()
+        to_post._check_to_pay_lines_account()
+        to_post._reconcile_after_post()
         return res
 
     def _get_mached_payment(self):
