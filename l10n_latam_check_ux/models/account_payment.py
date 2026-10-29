@@ -206,12 +206,24 @@ class AccountPayment(models.Model):
         return super(AccountPayment, payments_with_reconciled_checks)._get_reconciled_checks_error()
 
     def action_draft(self):
+        # Only a confirmed operation after this payment blocks it. A canceled payment is out of the
+        # chain, so the last operation can be an earlier one, and a payment canceled without ever
+        # being confirmed has no operation date and never blocks.
         for rec in self:
+            if not rec.l10n_latam_move_check_ids_operation_date:
+                continue
+            rec_key = (rec.l10n_latam_move_check_ids_operation_date, rec._origin.id)
             for check in rec.mapped("l10n_latam_move_check_ids") + rec.mapped("l10n_latam_new_check_ids"):
                 last_operation = check._get_last_operation()
-                if rec != last_operation:
+                if (
+                    last_operation
+                    and rec != last_operation
+                    and (last_operation.l10n_latam_move_check_ids_operation_date, last_operation._origin.id) > rec_key
+                ):
                     raise ValidationError(
-                        "You cannot reset this operation to draft because it is not the last operation for the checks."
+                        self.env._(
+                            "You cannot reset this operation to draft because it is not the last operation for the checks."
+                        )
                     )
 
         super().action_draft()
@@ -339,6 +351,13 @@ class AccountPayment(models.Model):
             super(AccountPayment, with_checks)._synchronize_to_moves(
                 tuple(field for field in changed_fields if field != "amount")
             )
+
+    @api.model
+    def _get_trigger_fields_to_synchronize(self):
+        """Sin ``amount`` en el set de arriba, sacar un cheque de terceros existente tiene que
+        disparar la sincronización por sí solo: si no, el asiento conserva la línea del cheque
+        quitado y la contrapartida por el importe anterior."""
+        return super()._get_trigger_fields_to_synchronize() + ("l10n_latam_move_check_ids",)
 
     def _prepare_paired_payment_values(self):
         """Override to validate check payment method combinations on internal transfers.

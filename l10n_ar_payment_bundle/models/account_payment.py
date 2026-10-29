@@ -33,9 +33,12 @@ class AccountPayment(models.Model):
     payment_total = fields.Monetary(recursive=True)
     counterpart_currency_id = fields.Many2one(recursive=True)
 
-    @api.constrains("amount", "is_main_payment")
+    @api.constrains("amount", "amount_exact", "is_main_payment")
     def _check_amount_in_main_payment(self):
-        if self.filtered(lambda x: x.is_main_payment and x.amount != 0):
+        if self.filtered(
+            lambda x: x.is_main_payment
+            and (x.amount != 0 or (x.currency_id and not x.currency_id.is_zero(x.amount_exact)))
+        ):
             raise ValidationError(_("The payment bundle amount always must be Zero"))
 
     @api.constrains("company_id", "main_payment_id", "link_payment_ids")
@@ -161,6 +164,7 @@ class AccountPayment(models.Model):
     def _compute_amount(self):
         main_paments = self.filtered("is_main_payment")
         main_paments.amount = 0.0
+        main_paments.amount_exact = 0.0
         super(AccountPayment, self - main_paments)._compute_amount()
 
     @api.onchange("to_pay_move_line_ids", "is_main_payment")
@@ -170,6 +174,7 @@ class AccountPayment(models.Model):
         constraint _check_amount_in_main_payment."""
         main_payments = self.filtered("is_main_payment")
         main_payments.amount = 0
+        main_payments.amount_exact = 0
         super(AccountPayment, self - main_payments)._onchange_to_pay_lines_adjust_amount()
 
     @api.onchange("withholdings_amount")
@@ -177,7 +182,14 @@ class AccountPayment(models.Model):
         """dejamos este onchange además del compute_amount porque "le gana" en ejecución y, si cambian retenciones le asignaba un amount"""
         main_payments = self.filtered("is_main_payment")
         main_payments.amount = 0
+        main_payments.amount_exact = 0
         super(AccountPayment, self - main_payments)._onchange_withholdings()
+
+    @api.onchange("currency_id")
+    def _onchange_currency_recompute_amount(self):
+        main_payments = self.filtered("is_main_payment")
+        main_payments.previous_currency_id = main_payments.currency_id
+        super(AccountPayment, self - main_payments)._onchange_currency_recompute_amount()
 
     @api.depends("main_payment_id")
     def _compute_counterpart_rate(self):
