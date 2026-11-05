@@ -18,3 +18,9 @@ class ResCompany(models.Model):
         help="Account used to record extra charges related to loans.",
     )
     loan_terms = fields.Html(string=" Loan Default Terms and Conditions", translate=True)
+
+    def _get_loan_setting(self, fname):
+        """Loan setting of the closest company in the hierarchy that has it set, so branches use the one of
+        their parent company unless they set their own."""
+        self.ensure_one()
+        return next((company[fname] for company in reversed(self.parent_ids) if company[fname]), self[fname])
