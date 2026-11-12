@@ -44,6 +44,15 @@ class TestBundleTwoCurrencies(AccountInvariantsMixin, TransactionCase):
         cls.env = cls.env(context=dict(cls.env.context, allowed_company_ids=cls.company.ids))
         cls.env.user.company_id = cls.company
         cls.company.use_payment_pro = True
+        # RI companies require a single VAT tax per line; an exempt one keeps the amounts
+        cls.vat_exempt = cls.env["account.tax"].search(
+            [
+                ("company_id", "parent_of", cls.company.id),
+                ("type_tax_use", "=", "purchase"),
+                ("tax_group_id.l10n_ar_vat_afip_code", "=", "2"),
+            ],
+            limit=1,
+        )
 
         cls.usd = cls.env.ref("base.USD")
         cls.usd.active = True
@@ -122,7 +131,7 @@ class TestBundleTwoCurrencies(AccountInvariantsMixin, TransactionCase):
                             "quantity": 1,
                             "price_unit": 50000.0,
                             "account_id": expense.id,
-                            "tax_ids": [Command.clear()],
+                            "tax_ids": [Command.set(self.vat_exempt.ids)],
                         }
                     ),
                 ],
@@ -205,7 +214,7 @@ class TestBundleTwoCurrencies(AccountInvariantsMixin, TransactionCase):
                             "quantity": 1,
                             "price_unit": 50000.0,
                             "account_id": expense.id,
-                            "tax_ids": [Command.clear()],
+                            "tax_ids": [Command.set(self.vat_exempt.ids)],
                         }
                     ),
                 ],
@@ -216,6 +225,8 @@ class TestBundleTwoCurrencies(AccountInvariantsMixin, TransactionCase):
         payment_form = Form(
             self.env["account.payment"].with_context(default_payment_type="outbound", default_partner_type="supplier")
         )
+        # The demo data has USD rates near today; pin the date to the rate the test creates
+        payment_form.date = "2026-01-01"
         payment_form.journal_id = self.usd_bank_journal
         payment_form.partner_id = self.vendor
         self.assertEqual(payment_form.amount, 50.0)
