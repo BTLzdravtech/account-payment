@@ -694,7 +694,12 @@ class AccountPayment(models.Model):
         reparto entre varias líneas de liquidez —el caso de los cheques— vive en su módulo
         (`l10n_latam_check_ux`, ticket 123832) en vez de estar duplicado acá.
         """
-        if self.accounting_rate and self.currency_id != self.company_currency_id and force_balance is None:
+        if (
+            self.company_id.use_payment_pro
+            and self.accounting_rate
+            and self.currency_id != self.company_currency_id
+            and force_balance is None
+        ):
             amount_for_calc = self.amount_exact if self.amount_exact else self.amount
             force_balance = amount_for_calc / self.accounting_rate  # A/C → monto en C
 
