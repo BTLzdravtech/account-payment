@@ -71,7 +71,6 @@ class AccountPayment(models.Model):
         digits=0,
         min_display_digits=2,
     )
-    reconcile_on_company_currency = fields.Boolean(related="company_id.reconcile_on_company_currency")
     counterpart_currency_editable = fields.Boolean(
         compute="_compute_counterpart_currency_editable",
         help="True when the destination account does not force a specific currency, "
@@ -272,7 +271,6 @@ class AccountPayment(models.Model):
         "destination_account_id",
         "company_currency_id",
         "company_id",
-        "journal_id",
         "to_pay_move_line_ids",
         "multi_currency_debt",
     )
@@ -283,14 +281,7 @@ class AccountPayment(models.Model):
             if account_currency and account_currency != rec.company_currency_id:
                 rec.counterpart_currency_editable = False
                 continue
-            elif rec.company_id.reconcile_on_company_currency:
-                # with reconcile the debt can only be in C or in the journal currency (see _compute_counterpart_currency_id)
-                journal_currency = rec.journal_id.currency_id
-                rec.counterpart_currency_editable = (
-                    bool(journal_currency) and journal_currency != rec.company_currency_id
-                )
-                continue
-            elif self.env.context.get("default_company_id"):
+            elif self.env.context.get("default_company_id") and not rec.company_id.reconcile_on_company_currency:
                 # sin reconcile, si venimos desde una factura NO queremos que editen la currency
                 rec.counterpart_currency_editable = False
                 continue
@@ -301,7 +292,6 @@ class AccountPayment(models.Model):
         "to_pay_move_line_ids",
         "company_id",
         "company_currency_id",
-        "journal_id",
         "is_internal_transfer",
         "destination_journal_id",
     )
@@ -321,11 +311,11 @@ class AccountPayment(models.Model):
                 rec.counterpart_currency_id = account_currency
                 continue
 
-            # Case 2: the account has no currency (or it is C). With reconcile the debt is in C or in the journal
-            # currency: another one is converted and rounded, leaving a residual in C with no exchange difference.
-            # Without reconcile it is recomputed because the user may pick debt in another currency
+            # Caso 2: la cuenta no tiene moneda definida (o es la de la compañía), en reconcile si ya eligió una
+            # la mantenemos. Sin reconcile se recomputa porque pudo elegir deuda en otra moneda
             if rec.company_id.reconcile_on_company_currency:
-                if rec.counterpart_currency_id not in (company_currency | rec.journal_id.currency_id):
+                if not rec.counterpart_currency_id:
+                    # Default: moneda de la compañía
                     rec.counterpart_currency_id = company_currency
             elif rec.to_pay_move_line_ids:
                 currencies = rec.to_pay_move_line_ids.mapped("currency_id")
@@ -394,6 +384,24 @@ class AccountPayment(models.Model):
     # CODIGO para UX de rate según la moneda mas fuerte. TODO evaluar si mantenemos o simplificamos
     ####
 
+    def _is_rate_inverted(self, from_currency, to_currency):
+        """True when ``to_currency`` is the strong one, so the form asks for the rate as "1 to = X from".
+
+        Reads the theoretical rate of the pair. Without a rate loaded for the date it comes back as 1.0 and the
+        direction would be decided by chance, so the foreign currency is taken as the strong one, which is how
+        the rate is quoted.
+        """
+        self.ensure_one()
+        theoretical_rate = self.env["res.currency"]._get_conversion_rate(
+            from_currency=from_currency,
+            to_currency=to_currency,
+            company=self.company_id,
+            date=self.date or fields.Date.context_today(self),
+        )
+        if theoretical_rate != 1.0:
+            return theoretical_rate < 1.0
+        return from_currency == self.company_currency_id and to_currency != self.company_currency_id
+
     @api.depends("currency_id", "counterpart_currency_id", "company_id", "date")
     def _compute_counterpart_rate_inverted(self):
         """Se fija en el rate teórico A→B1 para determinar si B1 es moneda fuerte (rate < 1.0) y por lo tanto mostrar el rate invertido al usuario (B1→A)"""
@@ -401,13 +409,7 @@ class AccountPayment(models.Model):
             if not rec.currency_id or rec.currency_id == rec.counterpart_currency_id:
                 rec.counterpart_rate_inverted = False
                 continue
-            theoretical_rate = self.env["res.currency"]._get_conversion_rate(
-                from_currency=rec.currency_id,
-                to_currency=rec.counterpart_currency_id,
-                company=rec.company_id,
-                date=rec.date or fields.Date.context_today(rec),
-            )
-            rec.counterpart_rate_inverted = theoretical_rate < 1.0
+            rec.counterpart_rate_inverted = rec._is_rate_inverted(rec.currency_id, rec.counterpart_currency_id)
 
     @api.depends("currency_id", "company_currency_id", "company_id", "date")
     def _compute_accounting_rate_inverted(self):
@@ -418,13 +420,7 @@ class AccountPayment(models.Model):
                 continue
             # Misma dirección que _compute_accounting_rate: _get_conversion_rate(C→A) = A/C.
             # Si A/C < 1.0 (A es la moneda fuerte, ej: USD/ARS = 0.000667), mostramos C/A = 1500.
-            theoretical_rate = self.env["res.currency"]._get_conversion_rate(
-                from_currency=rec.company_currency_id,
-                to_currency=rec.currency_id,
-                company=rec.company_id,
-                date=rec.date or fields.Date.context_today(rec),
-            )
-            rec.accounting_rate_inverted = theoretical_rate < 1.0
+            rec.accounting_rate_inverted = rec._is_rate_inverted(rec.company_currency_id, rec.currency_id)
 
     @api.depends("accounting_rate")
     def _compute_user_accounting_rate(self):
@@ -508,13 +504,28 @@ class AccountPayment(models.Model):
                     False,
                 )
             )
+            # Back in company currency, give back the exact default amount (no rounding
+            # drift) only if the amount was still the default one before the change, so
+            # that an amount changed on purpose (partial payment, total net of
+            # withholdings) is converted instead of replaced.
+            default_amount = rec.env.context.get("default_amount")
             if (
-                rec.env.context.get("default_amount")
+                default_amount
                 and rec.currency_id == rec.company_currency_id
                 and rec.currency_id.is_zero(rec._origin.amount_exact)
-                and not rec.currency_id.is_zero(amount - rec.env.context.get("default_amount"))
+                and not rec.currency_id.is_zero(amount - default_amount)
+                and old_currency.is_zero(
+                    old_amount
+                    - rec.company_currency_id._convert(
+                        default_amount,
+                        old_currency,
+                        rec.company_id,
+                        rec.date or fields.Date.context_today(rec),
+                        False,
+                    )
+                )
             ):
-                amount = rec.env.context.get("default_amount")
+                amount = default_amount
             rec.update({"amount_exact": amount, "amount": amount})
 
     @api.constrains("to_pay_move_line_ids")
@@ -555,6 +566,10 @@ class AccountPayment(models.Model):
             payment_lines = rec.move_id.line_ids.filtered(lambda l: l.account_id.account_type in valid_account_types)
             partials = payment_lines.mapped("matched_debit_ids") | payment_lines.mapped("matched_credit_ids")
             if partials:
+                # The debt may be of a branch the user has no access to, see _get_to_pay_companies.
+                debt_companies = (partials.sudo().debit_move_id | partials.sudo().credit_move_id).company_id
+                if debt_companies - self.env.companies:
+                    partials = partials.sudo()
                 partials.unlink()
 
         super().action_draft()
@@ -650,6 +665,11 @@ class AccountPayment(models.Model):
                 rec.counterpart_currency_amount = amount
 
     @api.onchange("counterpart_currency_amount")
+    def _onchange_counterpart_currency_amount(self):
+        """The onchange lives apart from the inverse: the registry takes the last method of the MRO, so a
+        module overriding the inverse would leave the field without an onchange."""
+        self._inverse_counterpart_currency_amount()
+
     def _inverse_counterpart_currency_amount(self):
         for rec in self:
             # Usar amount_exact para comparación precisa
@@ -1208,25 +1228,29 @@ class AccountPayment(models.Model):
         return records
 
     def _get_to_pay_companies(self):
-        """Las compañías cuya deuda puede pagar este pago: su entidad fiscal, acotada a lo
-        que el usuario tiene seleccionado.
+        """Las compañías cuya deuda puede pagar este pago.
 
-        La deuda de una entidad fiscal se cobra desde cualquiera de sus compañías, así que
-        el recibo tiene que listarla toda y no solo la de la compañía del pago —que era lo
-        que hacía, y por eso una sucursal no veía la deuda de su padre ni al revés—. Se
-        acota a ``env.companies`` porque el criterio acordado es "toda la deuda compatible
-        con las compañías que el usuario tiene seleccionadas, ni más ni menos": lo que el
-        usuario no tildó no entra.
+        Sigue a "Block Inter-Company Reconciliation" de la raíz del árbol: con bloqueo
+        siempre, solo la compañía del pago. Si no, la entidad fiscal acotada a lo que el
+        usuario tiene seleccionado, más lo que permite la opción
+        (``res.company._get_branch_debt_companies`` en ``account_ux``) si el usuario está
+        en el grupo "Read and collect the debt of other branches": un cliente compra en
+        una sucursal y paga en otra.
 
         El pago sigue quedando en la compañía donde se hizo, aunque la deuda sea de otra
-        sucursal de la entidad; lo que lo permite es el ``_check_company_domain`` de
-        ``account.move.line`` en ``account_ux``, que acepta la entidad fiscal completa.
+        sucursal; lo que lo permite es el ``_check_company_domain`` de
+        ``account.move.line`` en ``account_ux``, que acepta las mismas compañías.
         """
         self.ensure_one()
-        if not self.company_id:
+        company = self.company_id
+        if not company:
             return self.env["res.company"]
-        legal_entity = self.company_id._get_legal_entity_companies()
-        return (legal_entity & self.env.companies) or self.company_id
+        if company.sudo().root_id.block_intercompany_conciliation == "all":
+            return company
+        companies = company._get_legal_entity_companies() & self.env.companies
+        if self.env.user.has_group("account_ux.group_read_branch_debt"):
+            companies |= company._get_branch_debt_companies()
+        return companies or company
 
     def _get_to_pay_move_lines_domain(self):
         self.ensure_one()
@@ -1274,8 +1298,13 @@ class AccountPayment(models.Model):
             to_pay_partners = rec.to_pay_move_line_ids.mapped("partner_id")
             if len(to_pay_partners) > 1:
                 raise ValidationError(_("All to pay lines must be of the same partner"))
-            if len(rec.to_pay_move_line_ids.mapped("company_id")) > 1:
-                raise ValidationError(_("You can't create payments for entries belonging to different companies."))
+            if forbidden_companies := rec.to_pay_move_line_ids.company_id - rec._get_to_pay_companies():
+                raise ValidationError(
+                    _(
+                        "This payment can't collect the debt of %(companies)s. Remove those lines to continue.",
+                        companies=", ".join(forbidden_companies.mapped("name")),
+                    )
+                )
             if to_pay_partners and to_pay_partners != rec.partner_id.commercial_partner_id:
                 raise ValidationError(
                     _("Payment is for partner %s but payment lines are of partner %s")
@@ -1321,12 +1350,19 @@ class AccountPayment(models.Model):
             )
             if counterpart_aml and debt_aml:
                 debt_aml = self._get_debt_lines_covered(counterpart_aml, debt_aml)
-                (counterpart_aml + (debt_aml)).reconcile()
+                to_reconcile_aml = counterpart_aml + debt_aml
+                # The debt may be of a branch the user has no access to, see _get_to_pay_companies.
+                if debt_aml.company_id - self.env.companies:
+                    to_reconcile_aml = to_reconcile_aml.sudo()
+                to_reconcile_aml.reconcile()
 
     def action_post(self):
         # The list view "Post Payments" action calls this on every selected payment, and the core sets
         # the ones with a cash outstanding account to paid whatever their state. Canceled ones are skipped.
         to_post = self.filtered(lambda x: x.state != "canceled")
+        # The scope may have changed since the lines were loaded, and the read rules silently hide what fell out of it.
+        to_post.invalidate_recordset(["to_pay_move_line_ids"])
+        to_post.sudo().check_to_pay_lines()
         res = super(AccountPayment, to_post).action_post()
         to_post._check_to_pay_lines_account()
         to_post._reconcile_after_post()
